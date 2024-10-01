@@ -1,0 +1,37 @@
+
+struct FILE {;}
+
+extern printf(format: string, ...): int
+extern fopen(name: string, mode: string): FILE*
+extern fclose(file: FILE*): int
+extern fread(ptr: void*, size: int, nmemb: int, stream: FILE*): int
+extern malloc(size: int): void*
+extern free(ptr: void*): void
+extern strcpy(s: string, other: string): string
+extern strlen(s: string): int
+extern strcat(s: string, other: string): string
+
+struct String {
+    value: string;
+
+    add(self, other: string): string {
+        let new_len = strlen(self.value) + strlen(other);
+        let new_str = malloc(new_len + 1) as char*;
+        strcpy(new_str, self.value);
+        strcat(new_str, other);
+        self.value = new_str as string;
+        return new_str as string
+    }
+}
+
+func hello(): int {
+    return 0
+}
+
+func main(): int {
+    let s = String { "Hello, " };
+    printf("%s\n", s.add("world!"));
+    printf("%s\n", s.value);
+
+    return 0
+}

@@ -1,0 +1,11 @@
+struct FILE {;}
+
+extern printf(format: string, ...): int
+extern fopen(name: string, mode: string): FILE*
+extern fclose(file: FILE*): int
+extern fread(ptr: void*, size: int, nmemb: int, stream: FILE*): int
+extern malloc(size: int): void*
+extern free(ptr: void*): void
+extern strcpy(s: string, other: string): string
+extern strlen(s: string): int
+extern strcat(s: string, other: string): string

@@ -1,0 +1,15 @@
+
+
+struct String {
+    value: string;
+
+    add(self, other: string): string {
+        let self_len = strlen(self.value);
+        let other_len = strlen(other);
+        let new_len = self_len + other_len;
+        let new_str = malloc(new_len + 1);
+        strcpy(new_str, self.value);
+        strcat(new_str + self_len, other);
+        return new_str
+    }
+}

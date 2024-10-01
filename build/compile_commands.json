@@ -1,0 +1,80 @@
+[
+{
+  "directory": "/Users/antoine/Documents/jack/build",
+  "command": "/usr/local/opt/llvm/bin/clang -I/usr/local/Cellar/llvm/18.1.8/include -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -o CMakeFiles/jack.dir/src/main.c.o -c /Users/antoine/Documents/jack/src/main.c",
+  "file": "/Users/antoine/Documents/jack/src/main.c",
+  "output": "CMakeFiles/jack.dir/src/main.c.o"
+},
+{
+  "directory": "/Users/antoine/Documents/jack/build",
+  "command": "/usr/local/opt/llvm/bin/clang -I/usr/local/Cellar/llvm/18.1.8/include -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -o CMakeFiles/jack.dir/src/lexer.c.o -c /Users/antoine/Documents/jack/src/lexer.c",
+  "file": "/Users/antoine/Documents/jack/src/lexer.c",
+  "output": "CMakeFiles/jack.dir/src/lexer.c.o"
+},
+{
+  "directory": "/Users/antoine/Documents/jack/build",
+  "command": "/usr/local/opt/llvm/bin/clang -I/usr/local/Cellar/llvm/18.1.8/include -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -o CMakeFiles/jack.dir/src/string.c.o -c /Users/antoine/Documents/jack/src/string.c",
+  "file": "/Users/antoine/Documents/jack/src/string.c",
+  "output": "CMakeFiles/jack.dir/src/string.c.o"
+},
+{
+  "directory": "/Users/antoine/Documents/jack/build",
+  "command": "/usr/local/opt/llvm/bin/clang -I/usr/local/Cellar/llvm/18.1.8/include -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -o CMakeFiles/jack.dir/src/ast.c.o -c /Users/antoine/Documents/jack/src/ast.c",
+  "file": "/Users/antoine/Documents/jack/src/ast.c",
+  "output": "CMakeFiles/jack.dir/src/ast.c.o"
+},
+{
+  "directory": "/Users/antoine/Documents/jack/build",
+  "command": "/usr/local/opt/llvm/bin/clang -I/usr/local/Cellar/llvm/18.1.8/include -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -o CMakeFiles/jack.dir/src/parser.c.o -c /Users/antoine/Documents/jack/src/parser.c",
+  "file": "/Users/antoine/Documents/jack/src/parser.c",
+  "output": "CMakeFiles/jack.dir/src/parser.c.o"
+},
+{
+  "directory": "/Users/antoine/Documents/jack/build",
+  "command": "/usr/local/opt/llvm/bin/clang -I/usr/local/Cellar/llvm/18.1.8/include -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -o CMakeFiles/jack.dir/src/type.c.o -c /Users/antoine/Documents/jack/src/type.c",
+  "file": "/Users/antoine/Documents/jack/src/type.c",
+  "output": "CMakeFiles/jack.dir/src/type.c.o"
+},
+{
+  "directory": "/Users/antoine/Documents/jack/build",
+  "command": "/usr/local/opt/llvm/bin/clang -I/usr/local/Cellar/llvm/18.1.8/include -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -o CMakeFiles/jack.dir/src/span.c.o -c /Users/antoine/Documents/jack/src/span.c",
+  "file": "/Users/antoine/Documents/jack/src/span.c",
+  "output": "CMakeFiles/jack.dir/src/span.c.o"
+},
+{
+  "directory": "/Users/antoine/Documents/jack/build",
+  "command": "/usr/local/opt/llvm/bin/clang -I/usr/local/Cellar/llvm/18.1.8/include -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -o CMakeFiles/jack.dir/src/llvm_codegen.c.o -c /Users/antoine/Documents/jack/src/llvm_codegen.c",
+  "file": "/Users/antoine/Documents/jack/src/llvm_codegen.c",
+  "output": "CMakeFiles/jack.dir/src/llvm_codegen.c.o"
+},
+{
+  "directory": "/Users/antoine/Documents/jack/build",
+  "command": "/usr/local/opt/llvm/bin/clang -I/usr/local/Cellar/llvm/18.1.8/include -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -o CMakeFiles/jack.dir/src/error.c.o -c /Users/antoine/Documents/jack/src/error.c",
+  "file": "/Users/antoine/Documents/jack/src/error.c",
+  "output": "CMakeFiles/jack.dir/src/error.c.o"
+},
+{
+  "directory": "/Users/antoine/Documents/jack/build",
+  "command": "/usr/local/opt/llvm/bin/clang -I/usr/local/Cellar/llvm/18.1.8/include -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -o CMakeFiles/jack.dir/src/symbols.c.o -c /Users/antoine/Documents/jack/src/symbols.c",
+  "file": "/Users/antoine/Documents/jack/src/symbols.c",
+  "output": "CMakeFiles/jack.dir/src/symbols.c.o"
+},
+{
+  "directory": "/Users/antoine/Documents/jack/build",
+  "command": "/usr/local/opt/llvm/bin/clang -I/usr/local/Cellar/llvm/18.1.8/include -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -o CMakeFiles/jack.dir/src/collection.c.o -c /Users/antoine/Documents/jack/src/collection.c",
+  "file": "/Users/antoine/Documents/jack/src/collection.c",
+  "output": "CMakeFiles/jack.dir/src/collection.c.o"
+},
+{
+  "directory": "/Users/antoine/Documents/jack/build",
+  "command": "/usr/local/opt/llvm/bin/clang -I/usr/local/Cellar/llvm/18.1.8/include -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -o CMakeFiles/jack.dir/src/cli.c.o -c /Users/antoine/Documents/jack/src/cli.c",
+  "file": "/Users/antoine/Documents/jack/src/cli.c",
+  "output": "CMakeFiles/jack.dir/src/cli.c.o"
+},
+{
+  "directory": "/Users/antoine/Documents/jack/build",
+  "command": "/usr/local/opt/llvm/bin/clang -I/usr/local/Cellar/llvm/18.1.8/include -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -o CMakeFiles/jack.dir/src/mangler.c.o -c /Users/antoine/Documents/jack/src/mangler.c",
+  "file": "/Users/antoine/Documents/jack/src/mangler.c",
+  "output": "CMakeFiles/jack.dir/src/mangler.c.o"
+}
+]
