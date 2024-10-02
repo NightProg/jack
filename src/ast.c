@@ -191,6 +191,7 @@ Type *new_func_type(Type *params, int num_params, Type *ret, int is_var_arg, Str
         return NULL;
     }
     type->kind = TYPE_FUNC;
+    type->parent = new_type(TYPE_INVALID);
     type->func.params = params;
     type->func.num_params = num_params;
     type->func.ret = ret;
@@ -206,6 +207,7 @@ Type *new_struct_type(String *name, Param *fields, int num_fields, MethodList *m
         return NULL;
     }
     type->kind = TYPE_STRUCT;
+    type->parent = new_type(TYPE_INVALID);
     type->struc.fields = fields;
     type->struc.num_fields = num_fields;
     type->struc.name = name;
@@ -219,6 +221,7 @@ Type *new_ptr_type(Type *inner_type) {
         return NULL;
     }
     type->kind = TYPE_PTR;
+    type->parent = new_type(TYPE_INVALID);
     type->inner_type = inner_type;
     return type;
 }
@@ -229,6 +232,7 @@ Type *new_array_type(Type *inner_type, int length) {
         return NULL;
     }
     type->kind = TYPE_ARRAY;
+    type->parent = new_type(TYPE_INVALID);
     type->array.inner_type = inner_type;
     type->array.length = length;
     return type;
@@ -240,6 +244,7 @@ Type *new_module_type(SymbolList *symbols, String *name) {
         return NULL;
     }
     type->kind = TYPE_MODULE;
+    type->parent = new_type(TYPE_INVALID);
     type->module.symbols = symbols;
     type->module.name = name;
     return type;
@@ -699,6 +704,54 @@ void append_stmt(StmtList *list, Stmt *stmt) {
     }
     list->stmts[list->size++] = stmt;
 }
+
+int append_stmt_at_first(StmtList *list, Stmt *expr) {
+    if (list->size == list->capacity) {
+        list->capacity *= 2;
+        Stmt ** new_stmts = malloc(sizeof(Stmt *) * list->capacity);
+        if (new_stmts == NULL) {
+            return 0;
+        }
+        memcpy(new_stmts + 1, list->stmts, sizeof(Stmt *) * list->size);
+        free(list->stmts);
+        list->stmts = new_stmts;
+    } else {
+        for (int i = list->size; i > 0; i--) {
+            list->stmts[i] = list->stmts[i - 1];
+        }
+    }
+    list->stmts[0] = expr;
+    list->size++;
+    return 1;
+}
+
+int replace_stmts(StmtList *list, Stmt *to_be_replaced, Stmt *stmt) {
+    for (int i = 0; i < list->size; i++) {
+        if (list->stmts[i] == to_be_replaced) {
+            list->stmts[i] = stmt;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int replace_stmt(StmtList *list, int index, Stmt *stmt) {
+    if (index < 0 || index >= list->size) {
+        return 0;
+    }
+    list->stmts[index] = stmt;
+    return 1;
+}
+
+int find_stmt(StmtList *list, Stmt *stmt) {
+    for (int i = 0; i < list->size; i++) {
+        if (list->stmts[i] == stmt) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 
 StmtList *stmt_list_from_array(int length, Stmt **array) {
     StmtList *list = new_stmt_list();

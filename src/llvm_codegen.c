@@ -191,6 +191,19 @@ LLVMTypeRef llvm_type(LLVMCodeGen *codegen, Type type) {
         case TYPE_STRING:
             return LLVMPointerType(LLVMInt8TypeInContext(codegen->context), 0);
         case TYPE_STRUCT: {
+//            if (type.parent != NULL) {
+//                if (type.parent->kind != TYPE_MODULE) {
+//                    printf("Unknown parent\n");
+//                    return NULL;
+//                }
+//                String *mangled = mangle_module(type.parent->module.name, type.struc.name);
+//                LLVMStructInfo *info = get_llvm_struct_info(codegen->structs, mangled);
+//                if (info == NULL) {
+//                    printf("Unknown struct 2\n");
+//                    return NULL;
+//                }
+//                return LLVMPointerType(info->type, 0);
+//            }
             if (compare_string(codegen->current_module, "") != 0) {
                 String *mangled = mangle_module(codegen->current_module, type.struc.name);
                 LLVMStructInfo *info = get_llvm_struct_info(codegen->structs, mangled);
@@ -200,18 +213,15 @@ LLVMTypeRef llvm_type(LLVMCodeGen *codegen, Type type) {
                 }
                 return LLVMPointerType(info->type, 0);
             }
-            if (type.parent != NULL) {
-                if (type.parent->kind != TYPE_MODULE) {
-                    printf("Unknown parent\n");
-                    return NULL;
-                }
+            if (type.parent != NULL && type.parent->kind == TYPE_MODULE) {
                 String *mangled = mangle_module(type.parent->module.name, type.struc.name);
                 LLVMStructInfo *info = get_llvm_struct_info(codegen->structs, mangled);
                 if (info == NULL) {
-                    printf("Unknown struct 2\n");
+                    printf("Unknown struct 3\n");
                     return NULL;
                 }
                 return LLVMPointerType(info->type, 0);
+
             }
             LLVMStructInfo *info = get_llvm_struct_info(codegen->structs, type.struc.name);
             if (info == NULL) {
@@ -238,6 +248,14 @@ LLVMTypeRef llvm_type(LLVMCodeGen *codegen, Type type) {
             printf("Unknown type\n");
             return NULL;
     }
+}
+
+
+String* llvm_codegen_mangle(LLVMCodeGen *codegen, String *name) {
+    if (compare_string(codegen->current_module, "") == 0) {
+        return name;
+    }
+    return mangle_module(codegen->current_module, name);
 }
 
 LLVMValueRef llvm_codegen_expr(LLVMCodeGen *codegen, Expr *expr) {
@@ -325,6 +343,8 @@ LLVMValueRef llvm_codegen_expr(LLVMCodeGen *codegen, Expr *expr) {
             String *name;
             if (expr->get.expr->ty->parent != NULL) {
                 name = mangle_module(expr->get.expr->ty->parent->module.name, expr->get.expr->ty->struc.name);
+            } else if (compare_string(codegen->current_module, "") != 0) {
+                name = mangle_module(codegen->current_module, expr->get.expr->ty->struc.name);
             } else {
                 name = expr->get.expr->ty->struc.name;
             }
@@ -554,7 +574,7 @@ void llvm_codegen_stmt(LLVMCodeGen *codegen, Stmt *stmt) {
                 }
                 LLVMTypeRef func_type = LLVMFunctionType(llvm_type(codegen, stmt->function.ret), param_types, stmt->function.num_params, 0);
 
-                LLVMValueRef func = LLVMAddFunction(codegen->module, stmt->function.name->data, func_type);
+                LLVMValueRef func = LLVMAddFunction(codegen->module, llvm_codegen_mangle(codegen, stmt->function.name)->data, func_type);
                 llvm_codegen_function(codegen, func_type, func, stmt);
             break;
         }
@@ -570,13 +590,14 @@ void llvm_codegen_stmt(LLVMCodeGen *codegen, Stmt *stmt) {
         }
 
         case STMT_STRUCT: {
-            LLVMTypeRef r = LLVMStructCreateNamed(codegen->context, stmt->struc.name->data);
+            String *mangle = llvm_codegen_mangle(codegen, stmt->struc.name);
+            LLVMTypeRef r = LLVMStructCreateNamed(codegen->context, mangle->data);
             LLVMTypeRef *types = malloc(sizeof(LLVMTypeRef) * stmt->struc.num_params);
             for (int i = 0; i < stmt->struc.num_params; i++) {
                 types[i] = llvm_type(codegen, stmt->struc.args[i].ty);
             }
             LLVMStructSetBody(r, types, stmt->struc.num_params, 0);
-            append_llvm_struct_info(codegen->structs, stmt->struc.name, r, stmt->struc.args);
+            append_llvm_struct_info(codegen->structs, mangle, r, stmt->struc.args);
             for (int i = 0; i < stmt->struc.methods->size; i++) {
                 LLVMTypeRef* param_types = malloc(sizeof(LLVMTypeRef) * stmt->struc.methods->methods[i]->num_params);
                 for (int j = 0; j < stmt->struc.methods->methods[i]->num_params; j++) {
@@ -589,6 +610,9 @@ void llvm_codegen_stmt(LLVMCodeGen *codegen, Stmt *stmt) {
                 }
                 LLVMTypeRef func_type = LLVMFunctionType(llvm_type(codegen, stmt->struc.methods->methods[i]->ret), param_types, stmt->struc.methods->methods[i]->num_params, 0);
                 String* mangled = mangle_struct_method(stmt->struc.name, stmt->struc.methods->methods[i]->name);
+                if (compare_string(codegen->current_module, "") != 0) {
+                    mangled = mangle_module(codegen->current_module, mangled);
+                }
                 LLVMValueRef func = LLVMAddFunction(codegen->module, mangled->data, func_type);
 
                 for (int j = 0; j < stmt->struc.methods->methods[i]->num_params; j++) {
@@ -641,7 +665,12 @@ void llvm_codegen_stmt(LLVMCodeGen *codegen, Stmt *stmt) {
             break;
         }
         case STMT_MODULE: {
-            printf("Module %s\n", stmt->module.name->data);
+            String *old_module = codegen->current_module;
+            codegen->current_module = stmt->module.name;
+            for (int i = 0; i < stmt->module.stmts->size; i++) {
+                llvm_codegen_stmt(codegen, stmt->module.stmts->stmts[i]);
+            }
+            codegen->current_module = old_module;
             break;
         }
         default:

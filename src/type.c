@@ -6,6 +6,13 @@
 #include "mangler.h"
 
 
+Type* visit_new_type(TypeChecker *tc, Type *type) {
+    if (tc->parent_type) {
+        *type->parent = *tc->parent_type;
+    }
+    return type;
+}
+
 int analyze_type(TypeChecker *tc, Type *type) {
     if (type->kind == TYPE_STRUCT) {
         Type* struct_type = get_var(tc->scope_manager, type->struc.name);
@@ -103,7 +110,7 @@ int float_rule(TypeChecker *tc, Expr *expr) {
 }
 
 int string_rule(TypeChecker *tc, Expr *expr) {
-    *expr->ty = *new_type(TYPE_STRING);
+    *expr->ty = *new_ptr_type(new_type(TYPE_CHAR));
     return 1;
 }
 
@@ -113,13 +120,13 @@ int char_rule(TypeChecker *tc, Expr *expr) {
 }
 
 int ident_rule(TypeChecker *tc, Expr *expr) {
-    VarInfo *var_info = get_var_info(tc->scope_manager->current, expr->ident_val);
+    Type *var_info = get_var(tc->scope_manager, expr->ident_val);
     if (var_info == NULL) {
         printf("Variable not found: %s\n", expr->ident_val->data);
         add_error(errorList, "Variable not found", expr->span, tc->source);
         return 0;
     }
-    *expr->ty = var_info->type;
+    *expr->ty = *var_info;
     return 1;
 }
 
@@ -509,8 +516,8 @@ int func_stmt_rule(TypeChecker *tc, Stmt *stmt) {
         analyze_type(tc, &stmt->function.args[i].ty);
         param[i] = stmt->function.args[i].ty;
     }
-    add_var(tc->scope_manager, stmt->function.name, *new_func_type(param, stmt->function.num_params, ret, 0,
-                                                                   stmt->function.name, 0));
+    add_var(tc->scope_manager, stmt->function.name, *visit_new_type(tc, new_func_type(param, stmt->function.num_params, ret, 0,
+                                                                   stmt->function.name, 0)));
     enter_scope(tc->scope_manager);
     tc->current_function = stmt->function.name;
     for (int i = 0; i < stmt->function.num_params; i++) {
@@ -532,7 +539,7 @@ int struct_stmt_rule(TypeChecker *tc, Stmt *stmt) {
     }
     Type* s = new_struct_type(stmt->struc.name, fields, stmt->struc.num_params,
                               stmt->struc.methods);
-    add_var(tc->scope_manager, stmt->struc.name, *s);
+    add_var(tc->scope_manager, stmt->struc.name, *visit_new_type(tc, s));
 
     for (int i = 0; i < stmt->struc.methods->size; i++) {
         Type* ret = &stmt->struc.methods->methods[i]->ret;
@@ -567,9 +574,9 @@ int extern_stmt_rule(TypeChecker *tc, Stmt *stmt) {
         analyze_type(tc, &stmt->extern_.args[i].ty);
         param[i] = stmt->extern_.args[i].ty;
     }
-    add_var(tc->scope_manager, stmt->extern_.name, *new_func_type(param, stmt->extern_.num_params,
+    add_var(tc->scope_manager, stmt->extern_.name, *visit_new_type(tc, new_func_type(param, stmt->extern_.num_params,
                                                                   &stmt->extern_.ret, stmt->extern_.is_vararg,
-                                                                  stmt->extern_.name, 1));
+                                                                  stmt->extern_.name, 1)));
     return 1;
 }
 
@@ -592,14 +599,17 @@ int import_stmt_rule(TypeChecker *tc, Stmt *stmt) {
 
             StmtList *stmts = parse(strdup(buffer), path->data);
             Symbols *symbols = get_symbols_from_stmts(stmts);
-            TypeChecker *new_tc = new_type_checker(new_symbols(), buffer);
+            TypeChecker *new_tc = new_type_checker(new_symbols(), stmts, buffer);
+            Type *s = new_module_type(symbols->symbols, stmt->import.name);
             new_tc->module_paths = tc->module_paths;
+            *new_tc->parent_type = *s;
             for (int j = 0; j < stmts->size; j++) {
                 if (!check_stmt(new_tc, stmts->stmts[j])) {
                     return 0;
                 }
             }
-            Type *s = new_module_type(symbols->symbols, stmt->import.name);
+            Stmt* module_stmt = new_module_stmt(stmt->import.name, stmts, stmt->span);
+            replace_stmts(tc->stmts, stmt, module_stmt);
             Symbol *symbol = new_symbol(stmt->import.name, s, 0, NULL);
             if (!append_symbol(tc->symbols->symbols, symbol)) {
                 return 0;
@@ -609,7 +619,8 @@ int import_stmt_rule(TypeChecker *tc, Stmt *stmt) {
             return 1;
         }
     }
-    return 1;
+    add_error(errorList, "Module not found", stmt->span, tc->source);
+    return 0;
 }
 
 int module_stmt_rule(TypeChecker *tc, Stmt *stmt) {
@@ -793,7 +804,6 @@ ScopeManager *new_scope_manager() {
     sm->current = sm->global;
     return sm;
 }
-
 Type* get_var(ScopeManager *manager, String *name) {
     VarInfo *var_info = get_var_info(manager->current, name);
     if (var_info == NULL) {
@@ -829,8 +839,9 @@ int exit_scope(ScopeManager *manager) {
     return 1;
 }
 
-TypeChecker *new_type_checker(Symbols *symbols, const char* source) {
+TypeChecker *new_type_checker(Symbols *symbols, StmtList *stmts, const char* source) {
     TypeChecker *tc = malloc(sizeof(TypeChecker));
+    tc->stmts = stmts;
     if (tc == NULL) {
         return NULL;
     }
@@ -858,6 +869,7 @@ TypeChecker *new_type_checker(Symbols *symbols, const char* source) {
         return NULL;
     }
     tc->symbols = symbols;
+    tc->parent_type = new_type(TYPE_INVALID);
     tc->module_paths = new_string_list();
     append_string(tc->module_paths, new_string("/Users/antoine/.jack/"));
 
@@ -915,17 +927,17 @@ int check_stmt(TypeChecker *tc, Stmt *stmt) {
     return 0;
 }
 
-int check_stmt_list(TypeChecker *tc, StmtList *stmts) {
+int check_tc(TypeChecker *tc) {
     for (int k = 0; k < tc->symbols->symbols->size; k++) {
         add_var(tc->scope_manager, tc->symbols->symbols->symbols[k]->name, *tc->symbols->symbols->symbols[k]->type);
     }
     int n = 0;
-    for (int i = 0; i < stmts->size; i++) {
-        if (check_stmt(tc, stmts->stmts[i])) {
+    for (int i = 0; i < tc->stmts->size; i++) {
+        if (check_stmt(tc,  tc->stmts->stmts[i])) {
             n++;
         }
     }
-    return n == stmts->size;
+    return n == tc->stmts->size;
 }
 
 

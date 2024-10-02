@@ -98,14 +98,16 @@ struct TypeChecker {
     String *current_struct;
     Symbols *symbols;
     StringList *module_paths;
+    StmtList *stmts;
     Expr *expr_get_parent;
+    Type *parent_type;
 };
 
-TypeChecker *new_type_checker(Symbols *symbols, const char *source);
+TypeChecker *new_type_checker(Symbols *symbols, StmtList *stmts, const char *source);
 
 int check_expr(TypeChecker *tc, Expr *expr);
 int check_stmt(TypeChecker *tc, Stmt *stmt);
-int check_stmt_list(TypeChecker *tc, StmtList *stmts);
+int check_tc(TypeChecker *tc);
 int check_same_type(Type *type1, Type *type2);
 
 

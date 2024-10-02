@@ -28,6 +28,10 @@ add_executable(jack src/main.c
         src/cli.c
         src/cli.h
         src/mangler.c
-        src/mangler.h)
+        src/mangler.h
+        src/optimizer.c
+        src/optimizer.h
+        src/gc.c
+        src/gc.h)
 
 target_link_libraries(jack LLVM-18)

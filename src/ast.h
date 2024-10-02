@@ -32,8 +32,12 @@ typedef struct Param Param;
 typedef struct Method Method;
 typedef struct MethodParam MethodParam;
 typedef struct MethodList MethodList;
-
 typedef struct Symbol Symbol;
+typedef struct Stat Stat;
+
+struct Stat {
+    int num_use;
+};
 
 struct Symbol {
     String *name;
@@ -90,6 +94,7 @@ typedef enum {
 struct Type {
     TypeKind kind;
     Type* parent;
+    Stat stat;
     union {
         struct {
             Type *params;
@@ -257,6 +262,11 @@ struct StmtList {
 StmtList *new_stmt_list();
 void append_stmt(StmtList *list, struct Stmt *stmt);
 StmtList *stmt_list_from_array(int length, struct Stmt **array);
+int append_stmt_at_first(StmtList *list, Stmt *stmt);
+int replace_stmts(StmtList *list, Stmt *to_be_replaced, Stmt *stmt);
+int replace_stmt(StmtList *list, int index, Stmt *stmt);
+int find_stmt(StmtList *list, Stmt *stmt);
+;
 int remove_stmt(StmtList *list, int index);
 void free_stmt_list(StmtList *list);
 

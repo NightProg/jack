@@ -2,6 +2,7 @@
 #include "parser.h"
 #include "llvm_codegen.h"
 #include "type.h"
+#include "optimizer.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -115,17 +116,23 @@ int run_cli(CliOptions *options) {
             return 1;
         }
 
-        TypeChecker *type_checker = new_type_checker(symbols, source_file);
+        TypeChecker *type_checker = new_type_checker(symbols, stmts, source_file);
         if (type_checker == NULL) {
             printf("Failed to create type checker\n");
             return 1;
         }
-        if (!check_stmt_list(type_checker, stmts)) {
+        if (!check_tc(type_checker)) {
             print_error_list();
             return 1;
         }
+//        Optimizer *optimizer = new_optimizer(stmts, type_checker->scope_manager);
+//        if (optimizer == NULL) {
+//            printf("Failed to create optimizer\n");
+//            return 1;
+//        }
+//        optimize(optimizer);
         Symbols *tc_symbols = type_checker->symbols;
-        LLVMCodeGen *codegen = new_llvm_codegen(stmts, tc_symbols, source_file);
+        LLVMCodeGen *codegen = new_llvm_codegen(type_checker->stmts, tc_symbols, source_file);
         if (codegen == NULL) {
             printf("Failed to create codegen\n");
             return 1;

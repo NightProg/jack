@@ -1,0 +1,8 @@
+dist/
+.vscode/
+build/
+cmake-build-debug/
+x
+hello.jack
+clang-format.txt
+.idea
