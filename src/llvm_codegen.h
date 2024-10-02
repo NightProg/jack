@@ -4,6 +4,7 @@
 #include <llvm-c/Core.h>
 
 #include "ast.h"
+#include "gc.h"
 
 typedef struct {
     String *name;

@@ -3,6 +3,7 @@
 #define JACK_STRING_H
 
 #include <stdlib.h>
+#include "gc.h"
 
 typedef struct {
     char* data;

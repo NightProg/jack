@@ -3,6 +3,7 @@
 
 #include "ast.h"
 #include "type.h"
+#include "gc.h"
 
 typedef struct {
     StmtList *stmts;

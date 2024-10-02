@@ -4,6 +4,7 @@
 #include "lexer.h"
 #include "ast.h"
 #include "error.h"
+#include "gc.h"
 
 
 

@@ -74,7 +74,6 @@ Symbols *new_symbols() {
     symbols->version = SYMBOLS_VERSION;
     symbols->symbols = new_symbol_list();
     if (symbols->symbols == NULL) {
-        free(symbols);
         return NULL;
     }
     return symbols;
@@ -113,19 +112,25 @@ Symbols *get_symbols_from_stmts(StmtList *stmts) {
 
             Type* f = new_func_type(args, stmt->function.num_params, &stmt->function.ret, 0, stmt->function.name, 0);
             if (f == NULL) {
+#ifdef NO_GC
                 free(args);
                 free_symbols(symbols);
+#endif
                 return NULL;
             }
             Symbol *symbol = new_symbol(stmt->function.name, f, 0, stmt);
             if (symbol == NULL) {
+#ifdef NO_GC
                 free(args);
                 free_symbols(symbols);
+#endif
                 return NULL;
             }
             if (!append_symbols(symbols, symbol)) {
+#ifdef NO_GC
                 free(args);
                 free_symbols(symbols);
+#endif
                 return NULL;
             }
         } else if (stmt->type == STMT_EXTERN) {

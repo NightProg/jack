@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include "string.h"
 #include "span.h"
+#include "gc.h"
 
 typedef enum {
     TOKEN_EOF,

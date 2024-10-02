@@ -22,6 +22,7 @@
 #include <stddef.h>
 #include "string.h"
 #include "span.h"
+#include "gc.h"
 
 typedef struct Expr Expr;
 typedef struct ExprList ExprList;

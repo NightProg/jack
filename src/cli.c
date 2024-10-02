@@ -44,7 +44,6 @@ CliOptions *parse_cli(int argc, char **argv) {
     options->output_file = NULL;
     options->input_files = new_string_list();
     if (options->input_files == NULL) {
-        free(options);
         return NULL;
     }
 
@@ -179,9 +178,6 @@ int run_cli(CliOptions *options) {
                 LLVMDisposeMessage(error);
                 return 1;
             }
-            if (options->output_file == NULL) {
-                free(output_file);
-            }
             if (options->compile_only || options->generate_assembly) {
                 return 0;
             }
@@ -214,7 +210,6 @@ int run_cli(CliOptions *options) {
         MainFunction main = (MainFunction)LLVMGetFunctionAddress(engine, "main");
         int result = main();
         LLVMDisposeExecutionEngine(engine);
-        free_symbols(symbols);
         return result;
 
     }

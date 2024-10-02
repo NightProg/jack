@@ -3,7 +3,9 @@
 
 #include "span.h"
 #include "string.h"
+#include "gc.h"
 #include <stddef.h>
+
 
 typedef struct {
     Span span;

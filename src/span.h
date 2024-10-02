@@ -2,6 +2,7 @@
 #define JACK_SPAN_H
 
 #include "string.h"
+#include "gc.h"
 
 typedef struct {
     int start;

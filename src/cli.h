@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include "string.h"
-
+#include "gc.h"
 
 typedef struct {
     int help;

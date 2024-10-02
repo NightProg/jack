@@ -1,0 +1,7 @@
+==55212== LEAK SUMMARY:
+==55212==    definitely lost: 21,512 bytes in 176 blocks
+==55212==    indirectly lost: 26,915 bytes in 385 blocks
+==55212==      possibly lost: 576 bytes in 2 blocks
+==55212==    still reachable: 228,981 bytes in 2,441 blocks
+==55212==         suppressed: 0 bytes in 0 blocks
+==55212== Rerun with --leak-check=full to see details of leaked memory

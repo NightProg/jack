@@ -3,6 +3,7 @@
 
 #include "ast.h"
 #include "error.h"
+#include "gc.h"
 
 
 typedef struct TypeChecker TypeChecker;
