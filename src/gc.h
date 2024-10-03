@@ -1,5 +1,6 @@
 #ifndef JACK_GC_H
 #define JACK_GC_H
+#define NO_GC
 
 #include <stddef.h>
 #include <stdlib.h>
