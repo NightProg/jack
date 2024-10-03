@@ -124,11 +124,11 @@ int run_cli(CliOptions *options) {
             print_error_list();
             return 1;
         }
-//        Optimizer *optimizer = new_optimizer(stmts, type_checker->scope_manager);
-//        if (optimizer == NULL) {
-//            printf("Failed to create optimizer\n");
-//            return 1;
-//        }
+        Optimizer *optimizer = new_optimizer(type_checker->stmts, type_checker->scope_manager);
+        if (optimizer == NULL) {
+            printf("Failed to create optimizer\n");
+            return 1;
+        }
 //        optimize(optimizer);
         Symbols *tc_symbols = type_checker->symbols;
         LLVMCodeGen *codegen = new_llvm_codegen(type_checker->stmts, tc_symbols, source_file);

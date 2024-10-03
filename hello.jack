@@ -1,8 +1,15 @@
 import std;
 import libc;
+
+module foo {
+    func hello(): int {
+        let ff = std::String { "hello " };
+        ff.add("world");
+        libc::printf("%s\n", ff.to_c_string());
+        return 0
+    }
+}
 func main(): int {
-    let ff = std::String { "hello " };
-    ff.add("world");
-    libc::printf("%s\n", ff.to_c_string());
+    foo::hello();
     return 0
 }

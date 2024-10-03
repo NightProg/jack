@@ -668,6 +668,18 @@ void free_expr_list(ExprList *list) {
     free(list);
 }
 
+Extension *new_extension(Type *ty, String *name, Param *args, int num_params, Type ret) {
+    Extension *extension = malloc(sizeof(Extension));
+    if (extension == NULL) {
+        return NULL;
+    }
+    extension->ty = ty;
+    extension->name = name;
+    extension->args = args;
+    extension->num_params = num_params;
+    extension->ret = ret;
+    return extension;
+}
 
 StmtList *new_stmt_list() {
     StmtList *list = malloc(sizeof(StmtList));

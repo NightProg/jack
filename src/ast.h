@@ -35,6 +35,7 @@ typedef struct MethodParam MethodParam;
 typedef struct MethodList MethodList;
 typedef struct Symbol Symbol;
 typedef struct Stat Stat;
+typedef struct Extension Extension;
 
 struct Stat {
     int num_use;
@@ -89,6 +90,7 @@ typedef enum {
     TYPE_NULL,
     TYPE_VOID,
     TYPE_MODULE,
+    TYPE_GENERIC,
     TYPE_INVALID,
 } TypeKind;
 
@@ -119,6 +121,9 @@ struct Type {
             String *name;
             SymbolList *symbols;
         } module;
+        struct {
+            String *name;
+        } generic;
         Type *inner_type;
 
     };
@@ -289,6 +294,7 @@ typedef enum {
     STMT_EXTERN,
     STMT_MODULE,
     STMT_IMPORT,
+    STMT_EXTENSION
 } StmtType;
 
 struct Stmt {
@@ -348,8 +354,19 @@ struct Stmt {
         struct {
             String *name;
         } import;
+        Extension *extension;
     };
 };
+
+struct Extension {
+    Type *ty;
+    String *name;
+    Param *args;
+    int num_params;
+    Type ret;
+};
+
+Extension *new_extension(Type *ty, String *name, Param *args, int num_params, Type ret);
 
 struct Method {
     String *name;
@@ -393,6 +410,7 @@ Stmt *new_struct_stmt(String *name, Param *args, int num_params, MethodList *met
 Stmt *new_extern_stmt(String *name, Param *args, int num_params, Type ret, int is_vararg, Span span);
 Stmt *new_module_stmt(String *name, StmtList *stmts, Span span);
 Stmt *new_import_stmt(String *name, Span span);
+Stmt *new_extension_stmt(Extension *extension, Span span);
 void free_stmt(Stmt *stmt);
 
 

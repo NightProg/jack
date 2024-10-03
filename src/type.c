@@ -168,6 +168,9 @@ int call_rule(TypeChecker *tc, Expr *expr) {
 
     if (expr->call.name->type == EXPR_GET) {
         append_expr_at_first(expr->call.args, tc->expr_get_parent);
+    } else if (expr->call.name->type == EXPR_IDENT) {
+        Type *var_info = get_var(tc->scope_manager, expr->call.name->ident_val);
+        var_info->stat.num_use++;
     }
 
 //    if (var_info->type.func.is_vararg) {
@@ -625,7 +628,22 @@ int import_stmt_rule(TypeChecker *tc, Stmt *stmt) {
 
 int module_stmt_rule(TypeChecker *tc, Stmt *stmt) {
     Symbols *symbols = get_symbols_from_stmts(stmt->module.stmts);
-    add_var(tc->scope_manager, stmt->module.name, *new_module_type(symbols->symbols, stmt->module.name));
+    Type* parent = new_module_type(symbols->symbols, stmt->module.name);
+    add_var(tc->scope_manager, stmt->module.name, *parent);
+    tc->module_paths = tc->module_paths;
+    Type *old_parent = tc->parent_type;
+    tc->parent_type = parent;
+    for (int i = 0; i < stmt->module.stmts->size; i++) {
+        if (!check_stmt(tc, stmt->module.stmts->stmts[i])) {
+            return 0;
+        }
+    }
+
+    tc->parent_type = old_parent;
+
+
+
+
     return 1;
 }
 
