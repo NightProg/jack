@@ -23,30 +23,60 @@ declare i32 @strlen(ptr %0)
 
 declare ptr @strcat(ptr %0, ptr %1)
 
-define void @Coord_display(ptr %0, ptr %self) {
+define i32 @Coord_display(ptr %self) {
 entry:
   %fieldtmp = getelementptr inbounds %Coord, ptr %self, i32 0, i32 0
   %loadtmp = load i32, ptr %fieldtmp, align 4
   %fieldtmp1 = getelementptr inbounds %Coord, ptr %self, i32 0, i32 1
   %loadtmp2 = load i32, ptr %fieldtmp1, align 4
   %calltmp = call i32 @printf(ptr @strtmp, i32 %loadtmp, i32 %loadtmp2)
-  store i32 0, ptr %0, align 4
+  ret i32 0
+}
+
+define void @add_Coord(ptr %0, ptr %self, ptr %other) {
+entry:
+
+  %structtmp = alloca %Coord, align 8
+  %fieldtmp = getelementptr inbounds %Coord, ptr %self, i32 0, i32 0
+  %loadtmp = load i32, ptr %fieldtmp, align 4
+  %fieldtmp1 = getelementptr inbounds %Coord, ptr %other, i32 0, i32 0
+  %loadtmp2 = load i32, ptr %fieldtmp1, align 4
+  %addtmp = add i32 %loadtmp, %loadtmp2
+  %fieldtmp3 = getelementptr inbounds %Coord, ptr %structtmp, i32 0, i32 0
+  store i32 %addtmp, ptr %fieldtmp3, align 4
+  %fieldtmp4 = getelementptr inbounds %Coord, ptr %self, i32 0, i32 1
+  %loadtmp5 = load i32, ptr %fieldtmp4, align 4
+  %fieldtmp6 = getelementptr inbounds %Coord, ptr %other, i32 0, i32 1
+  %loadtmp7 = load i32, ptr %fieldtmp6, align 4
+  %addtmp8 = add i32 %loadtmp5, %loadtmp7
+  %fieldtmp9 = getelementptr inbounds %Coord, ptr %structtmp, i32 0, i32 1
+  store i32 %addtmp8, ptr %fieldtmp9, align 4
+  %loadtmp10 = load ptr, ptr %structtmp, align 8
+  store ptr %loadtmp10, ptr %0, align 8
   ret void
 }
 
-define void @add_Coord(ptr %0, ptr %1, ptr %2) {
+define void @sub_Coord(ptr %0, ptr %self, ptr %other) {
 entry:
+  %allocatmp = alloca %Coord, align 8
+  store ptr %other, ptr %allocatmp, align 8
   %structtmp = alloca %Coord, align 8
-  %fieldtmp = getelementptr inbounds %Coord, ptr %2, i32 0, i32 0
+  %fieldtmp = getelementptr inbounds %Coord, ptr %self, i32 0, i32 0
   %loadtmp = load i32, ptr %fieldtmp, align 4
-  %fieldtmp1 = getelementptr inbounds %Coord, ptr %structtmp, i32 0, i32 0
-  store i32 %loadtmp, ptr %fieldtmp1, align 4
-  %fieldtmp2 = getelementptr inbounds %Coord, ptr %2, i32 0, i32 1
-  %loadtmp3 = load i32, ptr %fieldtmp2, align 4
-  %fieldtmp4 = getelementptr inbounds %Coord, ptr %structtmp, i32 0, i32 1
-  store i32 %loadtmp3, ptr %fieldtmp4, align 4
-  %loadtmp5 = load ptr, ptr %structtmp, align 8
-  store ptr %loadtmp5, ptr %0, align 8
+  %fieldtmp1 = getelementptr inbounds %Coord, ptr %allocatmp, i32 0, i32 0
+  %loadtmp2 = load i32, ptr %fieldtmp1, align 4
+  %subtmp = sub i32 %loadtmp, %loadtmp2
+  %fieldtmp3 = getelementptr inbounds %Coord, ptr %structtmp, i32 0, i32 0
+  store i32 %subtmp, ptr %fieldtmp3, align 4
+  %fieldtmp4 = getelementptr inbounds %Coord, ptr %self, i32 0, i32 1
+  %loadtmp5 = load i32, ptr %fieldtmp4, align 4
+  %fieldtmp6 = getelementptr inbounds %Coord, ptr %allocatmp, i32 0, i32 1
+  %loadtmp7 = load i32, ptr %fieldtmp6, align 4
+  %subtmp8 = sub i32 %loadtmp5, %loadtmp7
+  %fieldtmp9 = getelementptr inbounds %Coord, ptr %structtmp, i32 0, i32 1
+  store i32 %subtmp8, ptr %fieldtmp9, align 4
+  %loadtmp10 = load ptr, ptr %structtmp, align 8
+  store ptr %loadtmp10, ptr %0, align 8
   ret void
 }
 
@@ -72,8 +102,10 @@ entry:
   %calltmp = alloca ptr, align 8
   call void @yo(ptr %calltmp)
   %alloctmp = alloca ptr, align 8
-  call void @add_Coord(ptr %alloctmp, ptr %structtmp)
-  %calltmp2 = alloca i32, align 4
-  call void @Coord_display(ptr %calltmp2, ptr %alloctmp)
+  call void @add_Coord(ptr %alloctmp, ptr %structtmp, ptr %calltmp)
+  %alloctmp2 = alloca ptr, align 8
+  call void @sub_Coord(ptr %alloctmp2, ptr %alloctmp, ptr %calltmp)
+  %calltmp3 = call i32 @Coord_display(ptr %alloctmp)
+  %calltmp4 = call i32 @Coord_display(ptr %alloctmp2)
   ret i32 0
 }

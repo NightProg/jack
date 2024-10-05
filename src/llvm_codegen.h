@@ -60,7 +60,7 @@ typedef struct {
     ExtensionList *extensions;
     int no_load;
     int should_be_i64;
-    int is_main;
+    LLVMValueRef should_ret_store_ptr;
     String *current_module;
 } LLVMCodeGen;
 
