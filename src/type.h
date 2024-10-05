@@ -96,12 +96,14 @@ struct TypeChecker {
     ExprRules *expr_rules;
     String *source;
     String *current_function;
+    Type should_return;
     String *current_struct;
     Symbols *symbols;
     StringList *module_paths;
     StmtList *stmts;
     Expr *expr_get_parent;
     Type *parent_type;
+    ExtensionList *extensions;
 };
 
 TypeChecker *new_type_checker(Symbols *symbols, StmtList *stmts, const char *source);

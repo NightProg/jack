@@ -57,8 +57,10 @@ typedef struct {
     StmtList *stmts;
     LLVMVarInfoList *vars;
     LLVMStructInfoList* structs;
+    ExtensionList *extensions;
     int no_load;
     int should_be_i64;
+    int is_main;
     String *current_module;
 } LLVMCodeGen;
 

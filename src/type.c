@@ -135,6 +135,20 @@ int binop_rule(TypeChecker *tc, Expr *expr) {
     if (!check_expr(tc, expr->binop.lhs) || !check_expr(tc, expr->binop.rhs)) {
         return 0;
     }
+    if (expr->binop.lhs->ty->kind == TYPE_STRUCT) {
+        OpOverload *op = find_op_overload(expr->binop.lhs->ty->struc.op_overloads, OP_OVERLOAD_BINOP, expr->binop.op);
+        if (op == NULL) {
+            add_error(errorList, "Operator not found", expr->span, tc->source);
+            return 0;
+        }
+
+        if (!check_same_type(expr->binop.rhs->ty, &op->method->args[1].ty)) {
+            add_error(errorList, "Types do not match", expr->span, tc->source);
+            return 0;
+        }
+        *expr->ty = op->method->ret;
+        return 1;
+    }
     if (expr->binop.op == BINOP_EQ || expr->binop.op == BINOP_NEQ || expr->binop.op == BINOP_LT || expr->binop.op == BINOP_LTE || expr->binop.op == BINOP_GT || expr->binop.op == BINOP_GTE) {
         if (!can_be_cmp(expr->binop.lhs->ty, expr->binop.rhs->ty)) {
             add_error(errorList, "Invalid type: Expected int, float, char or string", expr->span, tc->source);
@@ -270,6 +284,24 @@ int expr_get_rule(TypeChecker *tc, Expr *expr) {
         return 0;
     }
     Type *s = expr->get.expr->ty;
+    Extension *ext = find_extension(tc->extensions, s);
+    if (ext != NULL) {
+        Method *method = find_method(ext->methods, expr->get.field);
+        if (method != NULL) {
+            Type *params = malloc(sizeof(Type) * (method->num_params+1));
+            for (int i = 0; i < method->num_params; i++) {
+                MethodParam param = method->args[i];
+                if (param.is_self) {
+                    params[i] = *expr->get.expr->ty;
+                    continue;
+                }
+                params[i] = param.ty;
+            }
+            *expr->ty = *new_func_type(params, method->num_params, &method->ret, 0, method->name, 0);
+            tc->expr_get_parent = expr->get.expr;
+            return 1;
+        }
+    }
     if (expr->get.expr->ty->kind != TYPE_STRUCT) {
         add_error(errorList, "Expected struct", expr->span, tc->source);
         return 0;
@@ -299,6 +331,7 @@ int expr_get_rule(TypeChecker *tc, Expr *expr) {
             return 1;
         }
     }
+
     return 0;
 }
 
@@ -455,41 +488,14 @@ int block_stmt_rule(TypeChecker *tc, Stmt *stmt) {
 }
 
 int return_stmt_rule(TypeChecker *tc, Stmt *stmt) {
-    if (tc->current_function == NULL) {
+    if (tc->should_return.kind == TYPE_INVALID) {
         add_error(errorList, "Return statement outside of function", stmt->span, tc->source);
         return 0;
-    }
-    if (tc->current_struct != NULL) {
-        Type *var_info = get_var(tc->scope_manager, tc->current_struct);
-        if (var_info == NULL) {
-            add_error(errorList, "Struct not found", stmt->span, tc->source);
-            return 0;
-        }
-        if (var_info->struc.methods->size == 0) {
-            add_error(errorList, "Return statement outside of method", stmt->span, tc->source);
-            return 0;
-        }
-
-        for (int i = 0; i < var_info->struc.methods->size; i++) {
-            if (compare_strings(var_info->struc.methods->methods[i]->name, tc->current_function) == 0) {
-                if (!check_expr(tc, stmt->ret_expr)) {
-                    return 0;
-                }
-                if (stmt->ret_expr->ty->kind != var_info->struc.methods->methods[i]->ret.kind) {
-                    add_error(errorList, "Return type does not match method return type", stmt->ret_expr->span, tc->source);
-                    return 0;
-                }
-                return 1;
-            }
-        }
-        add_error(errorList, "Method not found", stmt->span, tc->source);
-        return 0;
-
     }
     if (!check_expr(tc, stmt->ret_expr)) {
         return 0;
     }
-    if (stmt->ret_expr->ty->kind != get_var(tc->scope_manager, tc->current_function)->func.ret->kind) {
+    if (stmt->ret_expr->ty->kind != tc->should_return.kind) {
         add_error(errorList, "Return type does not match function return type", stmt->ret_expr->span, tc->source);
         return 0;
     }
@@ -523,6 +529,7 @@ int func_stmt_rule(TypeChecker *tc, Stmt *stmt) {
                                                                    stmt->function.name, 0)));
     enter_scope(tc->scope_manager);
     tc->current_function = stmt->function.name;
+    tc->should_return = stmt->function.ret;
     for (int i = 0; i < stmt->function.num_params; i++) {
         add_var(tc->scope_manager, stmt->function.args[i].name, param[i]);
     }
@@ -541,7 +548,7 @@ int struct_stmt_rule(TypeChecker *tc, Stmt *stmt) {
         fields[i] = stmt->struc.args[i];
     }
     Type* s = new_struct_type(stmt->struc.name, fields, stmt->struc.num_params,
-                              stmt->struc.methods);
+                              stmt->struc.methods, new_op_overload_list());
     add_var(tc->scope_manager, stmt->struc.name, *visit_new_type(tc, s));
 
     for (int i = 0; i < stmt->struc.methods->size; i++) {
@@ -561,11 +568,41 @@ int struct_stmt_rule(TypeChecker *tc, Stmt *stmt) {
         }
         tc->current_function = stmt->struc.methods->methods[i]->name;
         tc->current_struct = stmt->struc.name;
+        tc->should_return = stmt->struc.methods->methods[i]->ret;
         if (!check_stmt(tc, stmt->struc.methods->methods[i]->body)) {
             return 0;
         }
         exit_scope(tc->scope_manager);
         tc->current_struct = NULL;
+
+    }
+
+    for (int i = 0; i < stmt->struc.overloads->size; i++) {
+        OpOverload *overload = stmt->struc.overloads->overloads[i];
+        Type *ret = &overload->method->ret;
+        analyze_type(tc, ret);
+        enter_scope(tc->scope_manager);
+        for (int j = 0; j < overload->method->num_params; j++) {
+            MethodParam param = overload->method->args[j];
+            if (param.is_self) {
+                analyze_type(tc, s);
+                overload->method->args[j].ty = *s;
+                add_var(tc->scope_manager, new_string("self"), *s);
+                continue;
+            }
+            analyze_type(tc, &overload->method->args[j].ty);
+            analyze_type(tc, &param.ty);
+            add_var(tc->scope_manager, param.name, param.ty);
+        }
+        tc->current_function = overload->method->name;
+        tc->current_struct = stmt->struc.name;
+        tc->should_return = overload->method->ret;
+        if (!check_stmt(tc, overload->method->body)) {
+            return 0;
+        }
+        exit_scope(tc->scope_manager);
+        tc->current_struct = NULL;
+        append_op_overload(s->struc.op_overloads, overload);
 
     }
     return 1;
@@ -606,11 +643,13 @@ int import_stmt_rule(TypeChecker *tc, Stmt *stmt) {
             Type *s = new_module_type(symbols->symbols, stmt->import.name);
             new_tc->module_paths = tc->module_paths;
             *new_tc->parent_type = *s;
+            new_tc->extensions = tc->extensions;
             for (int j = 0; j < stmts->size; j++) {
                 if (!check_stmt(new_tc, stmts->stmts[j])) {
                     return 0;
                 }
             }
+            tc->extensions = new_tc->extensions;
             Stmt* module_stmt = new_module_stmt(stmt->import.name, stmts, stmt->span);
             replace_stmts(tc->stmts, stmt, module_stmt);
             Symbol *symbol = new_symbol(stmt->import.name, s, 0, NULL);
@@ -642,8 +681,41 @@ int module_stmt_rule(TypeChecker *tc, Stmt *stmt) {
     tc->parent_type = old_parent;
 
 
+    return 1;
+}
 
-
+int extension_stmt_rule(TypeChecker *tc, Stmt *stmt) {
+    analyze_type(tc, &stmt->extension->ty);
+    Type *s = &stmt->extension->ty;
+    for (int i = 0; i < stmt->extension->methods->size; i++) {
+        Type* ret = &stmt->extension->methods->methods[i]->ret;
+        analyze_type(tc, ret);
+        Type* param = malloc(sizeof(Type) * stmt->extension->methods->methods[i]->num_params);
+        enter_scope(tc->scope_manager);
+        for (int j = 0; j < stmt->extension->methods->methods[i]->num_params; j++) {
+            if (stmt->extension->methods->methods[i]->args[j].is_self) {
+                stmt->extension->methods->methods[i]->args[j].ty = *s;
+                add_var(tc->scope_manager, new_string("self"), stmt->extension->methods->methods[i]->args[j].ty);
+                continue;
+            }
+            analyze_type(tc, &stmt->extension->methods->methods[i]->args[j].ty);
+            param[j] = stmt->extension->methods->methods[i]->args[j].ty;
+            add_var(tc->scope_manager, stmt->extension->methods->methods[i]->args[j].name, stmt->extension->methods->methods[i]->args[j].ty);
+        }
+        tc->should_return = stmt->extension->methods->methods[i]->ret;
+        if (!check_stmt(tc, stmt->extension->methods->methods[i]->body)) {
+            return 0;
+        }
+        exit_scope(tc->scope_manager);
+    }
+    Extension *ext = find_extension(tc->extensions, &stmt->extension->ty);
+    if (ext != NULL) {
+        for (int i = 0; i < stmt->extension->methods->size; i++) {
+            append_method(ext->methods, stmt->extension->methods->methods[i]);
+        }
+        return 1;
+    }
+    append_extension(tc->extensions, stmt->extension);
     return 1;
 }
 
@@ -859,10 +931,11 @@ int exit_scope(ScopeManager *manager) {
 
 TypeChecker *new_type_checker(Symbols *symbols, StmtList *stmts, const char* source) {
     TypeChecker *tc = malloc(sizeof(TypeChecker));
-    tc->stmts = stmts;
     if (tc == NULL) {
         return NULL;
     }
+    tc->stmts = stmts;
+    tc->should_return = *new_type(TYPE_INVALID);
     tc->expr_get_parent = malloc(sizeof(Expr));
     if (tc->expr_get_parent == NULL) {
         free(tc);
@@ -887,6 +960,7 @@ TypeChecker *new_type_checker(Symbols *symbols, StmtList *stmts, const char* sou
         return NULL;
     }
     tc->symbols = symbols;
+    tc->extensions = new_extension_list();
     tc->parent_type = new_type(TYPE_INVALID);
     tc->module_paths = new_string_list();
     append_string(tc->module_paths, new_string("/Users/antoine/.jack/"));
@@ -921,6 +995,7 @@ TypeChecker *new_type_checker(Symbols *symbols, StmtList *stmts, const char* sou
     append_stmt_rule(tc->stmt_rules, new_stmt_rule(STMT_EXTERN, extern_stmt_rule));
     append_stmt_rule(tc->stmt_rules, new_stmt_rule(STMT_IMPORT, import_stmt_rule));
     append_stmt_rule(tc->stmt_rules, new_stmt_rule(STMT_MODULE, module_stmt_rule));
+    append_stmt_rule(tc->stmt_rules, new_stmt_rule(STMT_EXTENSION, extension_stmt_rule));
 
     tc->source = new_string(source);
     return tc;

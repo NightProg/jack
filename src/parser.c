@@ -404,6 +404,85 @@ Param parse_param(Parser *parser) {
     return (Param) {ident->span.source, ty};
 }
 
+Method *parse_method(Parser *parser) {
+    if (!check(parser, TOKEN_FUNC)) {
+        add_error(errorList, "Expected 'func'", parser->tokens->tokens[parser->current]->span, parser->source);
+        return NULL;
+    }
+    parser->current++;
+    if (!check(parser, TOKEN_IDENTIFIER)) {
+        add_error(errorList, "Expected identifier", parser->tokens->tokens[parser->current]->span, parser->source);
+        return NULL;
+    }
+    Token *method_name = parser->tokens->tokens[parser->current];
+    parser->current++;
+    if (!check(parser, TOKEN_LPAREN)) {
+        add_error(errorList, "Expected '('", method_name->span, parser->source);
+        return NULL;
+    }
+    parser->current++;
+    MethodParam *args = malloc(sizeof(MethodParam));
+    int num_params = 0;
+    while (!check(parser, TOKEN_RPAREN)) {
+        if (num_params > 0) {
+            if (parser->tokens->tokens[parser->current]->type != TOKEN_COMMA) {
+                add_error(errorList, "Expected ','", parser->tokens->tokens[parser->current]->span, parser->source);
+                return NULL;
+            }
+            parser->current++;
+        }
+
+        if (check(parser, TOKEN_SELF)) {
+            if (num_params > 0) {
+                add_error(errorList, "self should always be the first argument", parser->tokens->tokens[parser->current]->span, parser->source);
+                return NULL;
+            }
+            parser->current++;
+            args = realloc(args, sizeof(MethodParam) * (num_params + 1));
+            args[num_params] = (MethodParam) {1, NULL, *new_type(TYPE_INVALID)};
+            num_params++;
+            continue;
+        }
+        if (parser->tokens->tokens[parser->current]->type != TOKEN_IDENTIFIER) {
+            add_error(errorList, "Expected identifier", parser->tokens->tokens[parser->current]->span, parser->source);
+            return NULL;
+        }
+        Token *param_name = parser->tokens->tokens[parser->current];
+        parser->current++;
+        if (parser->tokens->tokens[parser->current]->type != TOKEN_COL) {
+            add_error(errorList, "Expected ':'", param_name->span, parser->source);
+            return NULL;
+        }
+        parser->current++;
+        Type ty = parse_type(parser);
+        if (ty.kind == TYPE_INVALID) {
+            return NULL;
+        }
+        args = realloc(args, sizeof(MethodParam) * (num_params + 1));
+        args[num_params] = (MethodParam) {0, param_name->span.source, ty};
+        num_params++;
+    }
+    if (parser->tokens->tokens[parser->current]->type != TOKEN_RPAREN) {
+        add_error(errorList, "Expected ')'", method_name->span, parser->source);
+        return NULL;
+    }
+    parser->current++;
+    if (parser->tokens->tokens[parser->current]->type != TOKEN_COL) {
+        add_error(errorList, "Expected ':'", method_name->span, parser->source);
+        return NULL;
+    }
+    parser->current++;
+    Type ret = parse_type(parser);
+    if (ret.kind == TYPE_INVALID) {
+        return NULL;
+    }
+    Stmt *body = parse_stmt(parser);
+    if (body == NULL) {
+        return NULL;
+    }
+    return new_method(method_name->span.source, args, num_params, ret, body);
+}
+
 Stmt *parse_stmt(Parser *parser) {
     if (check(parser, TOKEN_IF)) {
         return parse_if(parser);
@@ -438,6 +517,9 @@ Stmt *parse_stmt(Parser *parser) {
     if (check(parser, TOKEN_MODULE)) {
         return parse_module(parser);
     }
+    if (check(parser, TOKEN_EXTENSION)) {
+        return parse_extension(parser);
+    }
 
     Expr *expr = parse_expr(parser);
     if (expr == NULL) {
@@ -450,6 +532,114 @@ Stmt *parse_stmt(Parser *parser) {
     }
     parser->current++;
     return stmt;
+}
+
+OpOverload *parse_op_overload(Parser *parser) {
+    if (!check(parser, TOKEN_OP)) {
+        add_error(errorList, "Expected 'op'", parser->tokens->tokens[parser->current]->span, parser->source);
+        return NULL;
+    }
+    parser->current++;
+    Token *top = parser->tokens->tokens[parser->current];
+    parser->current++;
+    int op;
+    switch (top->type) {
+        case TOKEN_PLUS: {
+            op = BINOP_ADD;
+            break;
+        }
+        case TOKEN_MINUS: {
+            op = BINOP_SUB;
+            break;
+        }
+        case TOKEN_MUL: {
+            op = BINOP_MUL;
+            break;
+        }
+        case TOKEN_DIV: {
+            op = BINOP_DIV;
+            break;
+        }
+        case TOKEN_EQ: {
+            op = BINOP_EQ;
+            break;
+        }
+        case TOKEN_NEQ: {
+            op = BINOP_NEQ;
+            break;
+        }
+        case TOKEN_LT: {
+            op = BINOP_LT;
+            break;
+        }
+        case TOKEN_GT: {
+            op = BINOP_GT;
+            break;
+        }
+        case TOKEN_LTE: {
+            op = BINOP_LTE;
+            break;
+        }
+        case TOKEN_GTE: {
+            op = BINOP_GTE;
+            break;
+        }
+        default: {
+            add_error(errorList, "Invalid operator", top->span, parser->source);
+            return NULL;
+        }
+    }
+
+    if (!check(parser, TOKEN_LPAREN)) {
+        add_error(errorList, "Expected '('", top->span, parser->source);
+        return NULL;
+    }
+    if (is_arithmetic_op(op)) {
+        // self, and other
+        parser->current++;
+        if (!check(parser, TOKEN_SELF)) {
+            add_error(errorList, "Expected 'self'", parser->tokens->tokens[parser->current]->span, parser->source);
+            return NULL;
+        }
+        parser->current++;
+        if (!check(parser, TOKEN_COMMA)) {
+            add_error(errorList, "Expected ','", parser->tokens->tokens[parser->current]->span, parser->source);
+            return NULL;
+        }
+        parser->current++;
+        if (!check(parser, TOKEN_IDENTIFIER)) {
+            add_error(errorList, "Expected identifier", parser->tokens->tokens[parser->current]->span, parser->source);
+            return NULL;
+        }
+        Token *other = parser->tokens->tokens[parser->current];
+        parser->current++;
+        if (!check(parser, TOKEN_COL)) {
+            add_error(errorList, "Expected ':'", other->span, parser->source);
+            return NULL;
+        }
+        parser->current++;
+        Type ty = parse_type(parser);
+        if (!check(parser, TOKEN_RPAREN)) {
+            add_error(errorList, "Expected ')'", other->span, parser->source);
+            return NULL;
+        }
+        parser->current++;
+        if (!check(parser, TOKEN_COL)) {
+            add_error(errorList, "Expected ':'", other->span, parser->source);
+            return NULL;
+        }
+        parser->current++;
+        Type ret = parse_type(parser);
+        Stmt *body = parse_stmt(parser);
+        MethodParam *args = malloc(sizeof(MethodParam) * 2);
+        args[0] = (MethodParam) {1, NULL, *new_type(TYPE_INVALID)};
+        args[1] = (MethodParam) {0, other->span.source, ty};
+        Method *method = new_method(top->span.source, args, 2, ret, body);
+        return new_binop_overload(method, op);
+    } else {
+#include <assert.h>
+        assert(1);
+    }
 }
 
 Stmt *parse_struct(Parser *parser) {
@@ -490,88 +680,32 @@ Stmt *parse_struct(Parser *parser) {
     }
     parser->current++;
     MethodList *methods = new_method_list();
+    OpOverloadList *op_overloads = new_op_overload_list();
     while (!check(parser, TOKEN_RBRACE)) {
-        if (!check(parser, TOKEN_IDENTIFIER)) {
-            add_error(errorList, "Expected identifier", parser->tokens->tokens[parser->current]->span, parser->source);
-            return NULL;
-        }
-        Token *method_name = parser->tokens->tokens[parser->current];
-        parser->current++;
-        if (!check(parser, TOKEN_LPAREN)) {
-            add_error(errorList, "Expected '('", method_name->span, parser->source);
-            return NULL;
-        }
-        parser->current++;
-        MethodParam *args = malloc(sizeof(MethodParam));
-        int num_params = 0;
-        while (!check(parser, TOKEN_RPAREN)) {
-            if (num_params > 0) {
-                if (parser->tokens->tokens[parser->current]->type != TOKEN_COMMA) {
-                    add_error(errorList, "Expected ','", parser->tokens->tokens[parser->current]->span, parser->source);
-                    return NULL;
-                }
-                parser->current++;
-            }
-
-            if (check(parser, TOKEN_SELF)) {
-                if (num_params > 0) {
-                    add_error(errorList, "self should always be the first argument", parser->tokens->tokens[parser->current]->span, parser->source);
-                    return NULL;
-                }
-                parser->current++;
-                args = realloc(args, sizeof(MethodParam) * (num_params + 1));
-                args[num_params] = (MethodParam) {1, NULL, *new_type(TYPE_INVALID)};
-                num_params++;
-                continue;
-            }
-            if (parser->tokens->tokens[parser->current]->type != TOKEN_IDENTIFIER) {
-                add_error(errorList, "Expected identifier", parser->tokens->tokens[parser->current]->span, parser->source);
+        if (check(parser, TOKEN_OP)) {
+            OpOverload *op_overload = parse_op_overload(parser);
+            if (op_overload == NULL) {
                 return NULL;
             }
-            Token *param_name = parser->tokens->tokens[parser->current];
-            parser->current++;
-            if (parser->tokens->tokens[parser->current]->type != TOKEN_COL) {
-                add_error(errorList, "Expected ':'", param_name->span, parser->source);
-                return NULL;
-            }
-            parser->current++;
-            Type ty = parse_type(parser);
-            if (ty.kind == TYPE_INVALID) {
-                return NULL;
-            }
-            args = realloc(args, sizeof(MethodParam) * (num_params + 1));
-            args[num_params] = (MethodParam) {0, param_name->span.source, ty};
-            num_params++;
+            append_op_overload(op_overloads, op_overload);
+            continue;
         }
-        if (parser->tokens->tokens[parser->current]->type != TOKEN_RPAREN) {
-            add_error(errorList, "Expected ')'", method_name->span, parser->source);
+        Method *method = parse_method(parser);
+        if (method == NULL) {
             return NULL;
         }
-        parser->current++;
-        if (parser->tokens->tokens[parser->current]->type != TOKEN_COL) {
-            add_error(errorList, "Expected ':'", method_name->span, parser->source);
-            return NULL;
-        }
-        parser->current++;
-        Type ret = parse_type(parser);
-        if (ret.kind == TYPE_INVALID) {
-            return NULL;
-        }
-        Stmt *body = parse_stmt(parser);
-        if (body == NULL) {
-            return NULL;
-        }
-        append_method(methods, new_method(method_name->span.source, args, num_params, ret, body));
+        append_method(methods, method);
     }
     if (parser->tokens->tokens[parser->current]->type != TOKEN_RBRACE) {
         add_error(errorList, "Expected '}'", ident->span, parser->source);
         return NULL;
     }
     parser->current++;
-    return new_struct_stmt(ident->span.source, fields, num_fields, methods, extend_span(parser->source, struct_token->span,
-                                                                                     parser->tokens->tokens[
-                                                                                             parser->current -
-                                                                                             1]->span));
+    return new_struct_stmt(ident->span.source, fields, num_fields, methods, op_overloads,
+                           extend_span(parser->source, struct_token->span,
+                                       parser->tokens->tokens[
+                                               parser->current -
+                                               1]->span));
 }
 
 Stmt *parse_return(Parser *parser) {
@@ -606,7 +740,7 @@ Type parse_type(Parser *parser) {
     } else if (compare_string(ident->span.source, "char") == 0) {
         *res = *new_type(TYPE_CHAR);
     } else {
-        *res = *new_struct_type(ident->span.source, NULL, 0, new_method_list());
+        *res = *new_struct_type(ident->span.source, NULL, 0, new_method_list(), NULL);
     }
     if (is_ptr) {
         return *new_ptr_type(res);
@@ -968,6 +1102,37 @@ Stmt *parse_module(Parser *parser) {
     parser->current++;
     return new_module_stmt(ident->span.source, stmts, extend_span(parser->source, module_token->span,
                                                                  parser->tokens->tokens[parser->current - 1]->span));
+}
+
+Stmt *parse_extension(Parser *parser) {
+    Token *extension_token = parser->tokens->tokens[parser->current];
+    parser->current++;
+    Type ty = parse_type(parser);
+    if (ty.kind == TYPE_INVALID) {
+        return NULL;
+    }
+    if (!check(parser, TOKEN_LBRACE)) {
+        add_error(errorList, "Expected '{'", parser->tokens->tokens[parser->current]->span, parser->source);
+        return NULL;
+    }
+
+    parser->current++;
+    MethodList *methods = new_method_list();
+    while (!check(parser, TOKEN_RBRACE)) {
+        Method *method = parse_method(parser);
+        if (method == NULL) {
+            return NULL;
+        }
+        append_method(methods, method);
+    }
+    if (parser->tokens->tokens[parser->current]->type != TOKEN_RBRACE) {
+        add_error(errorList, "Expected '}'", parser->tokens->tokens[parser->current]->span, parser->source);
+        return NULL;
+    }
+    parser->current++;
+    return new_extension_stmt(new_extension(ty, methods), extend_span(parser->source, extension_token->span, parser->tokens->tokens[parser->current - 1]->span));
+
+
 }
 
 StmtList *parse(const char *source, const char *file) {

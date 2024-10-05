@@ -3,6 +3,7 @@
 //
 
 #include "ast.h"
+#include "type.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -161,7 +162,8 @@ Symbols *get_symbols_from_stmts(StmtList *stmts) {
                 return NULL;
             }
         } else if (stmt->type == STMT_STRUCT) {
-            Type* s = new_struct_type(stmt->struc.name, stmt->struc.args, stmt->struc.num_params, stmt->struc.methods);
+            Type* s = new_struct_type(stmt->struc.name, stmt->struc.args, stmt->struc.num_params, stmt->struc.methods,
+                                      NULL);
             if (s == NULL) {
                 free(s);
                 free_symbols(symbols);
@@ -206,7 +208,7 @@ Type *new_func_type(Type *params, int num_params, Type *ret, int is_var_arg, Str
     return type;
 }
 
-Type *new_struct_type(String *name, Param *fields, int num_fields, MethodList *methods) {
+Type *new_struct_type(String *name, Param *fields, int num_fields, MethodList *methods, OpOverloadList *list) {
     Type *type = malloc(sizeof(Type));
     if (type == NULL) {
         return NULL;
@@ -217,6 +219,7 @@ Type *new_struct_type(String *name, Param *fields, int num_fields, MethodList *m
     type->struc.num_fields = num_fields;
     type->struc.name = name;
     type->struc.methods = methods;
+    type->struc.op_overloads = list;
     return type;
 }
 
@@ -253,6 +256,69 @@ Type *new_module_type(SymbolList *symbols, String *name) {
     type->module.symbols = symbols;
     type->module.name = name;
     return type;
+}
+
+String *display_type(Type* type) {
+    String *str = new_string("");
+    switch (type->kind) {
+        case TYPE_INT:
+            add_c_string(str, "int");
+            break;
+        case TYPE_FLOAT:
+            add_c_string(str, "float");
+            break;
+        case TYPE_STRING:
+            add_c_string(str, "string");
+            break;
+        case TYPE_CHAR:
+            add_c_string(str, "char");
+            break;
+        case TYPE_BOOL:
+            add_c_string(str, "bool");
+            break;
+        case TYPE_FUNC:
+            add_c_string(str, "func(");
+            for (int i = 0; i < type->func.num_params; i++) {
+                add_string(str, display_type(&type->func.params[i]));
+                if (i + 1 < type->func.num_params) {
+                    add_c_string(str, ", ");
+                }
+            }
+            add_c_string(str, ")");
+            add_c_string(str, " : ");
+            add_string(str, display_type(type->func.ret));
+            break;
+        case TYPE_STRUCT:
+            add_string(str, type->struc.name);
+            break;
+        case TYPE_ARRAY:
+            add_c_string(str, "[");
+            add_string(str, display_type(type->array.inner_type));
+            add_c_string(str, "]");
+            break;
+        case TYPE_PTR:
+            add_string(str, display_type(type->inner_type));
+            add_c_string(str, "*");
+            break;
+        case TYPE_NULL:
+            add_c_string(str, "null");
+            break;
+        case TYPE_VOID:
+            add_c_string(str, "void");
+            break;
+        case TYPE_MODULE:
+            add_c_string(str, "module ");
+            add_string(str, type->module.name);
+            break;
+        case TYPE_GENERIC:
+            add_c_string(str, "generic ");
+            add_string(str, type->generic.name);
+            break;
+        case TYPE_INVALID:
+            add_c_string(str, "invalid");
+            break;
+    }
+    return str;
 }
 
 void free_type(Type *type) {
@@ -347,6 +413,15 @@ void append_method(MethodList *list, Method *method) {
         list->methods = new_methods;
     }
     list->methods[list->size++] = method;
+}
+
+Method *find_method(MethodList *list, String *name) {
+    for (int i = 0; i < list->size; i++) {
+        if (compare_strings(list->methods[i]->name, name) == 0) {
+            return list->methods[i];
+        }
+    }
+    return NULL;
 }
 
 MethodList *method_list_from_array(int length, Method **array) {
@@ -590,6 +665,14 @@ Expr *new_ns_expr(StringList *path, Span span) {
     return new_expr;
 }
 
+int is_arithmetic_op(int op) {
+    return op == BINOP_ADD || op == BINOP_SUB || op == BINOP_MUL || op == BINOP_DIV;
+}
+
+int is_cmp_op(int op) {
+    return op == BINOP_EQ || op == BINOP_NEQ || op == BINOP_LT || op == BINOP_GT || op == BINOP_LTE || op == BINOP_GTE;
+}
+
 ExprList *new_expr_list() {
     ExprList *list = malloc(sizeof(ExprList));
     if (list == NULL) {
@@ -668,18 +751,157 @@ void free_expr_list(ExprList *list) {
     free(list);
 }
 
-Extension *new_extension(Type *ty, String *name, Param *args, int num_params, Type ret) {
+OpOverload *new_unop_overload(Method *method, int unary_op) {
+    OpOverload *overload = malloc(sizeof(OpOverload));
+    if (overload == NULL) {
+        return NULL;
+    }
+    overload->kind = OP_OVERLOAD_UNOP;
+    overload->method = method;
+    overload->unop = unary_op;
+    return overload;
+}
+
+OpOverload *new_binop_overload(Method *method, int binary_op) {
+    OpOverload *overload = malloc(sizeof(OpOverload));
+    if (overload == NULL) {
+        return NULL;
+    }
+    overload->kind = OP_OVERLOAD_BINOP;
+    overload->method = method;
+    overload->binop = binary_op;
+    return overload;
+}
+
+OpOverloadList *new_op_overload_list() {
+    OpOverloadList *list = malloc(sizeof(OpOverloadList));
+    if (list == NULL) {
+        return NULL;
+    }
+    list->size = 0;
+    list->capacity = 4;
+    list->overloads = malloc(sizeof(OpOverload*) * list->capacity);
+    if (list->overloads == NULL) {
+        free(list);
+        printf("Failed to allocate memory\n");
+        return NULL;
+    }
+    return list;
+}
+
+void append_op_overload(OpOverloadList *list, OpOverload *overload) {
+    if (list->size == list->capacity) {
+        list->capacity *= 2;
+        OpOverload** new_overloads = malloc(sizeof(OpOverload*) * list->capacity);
+        if (new_overloads == NULL) {
+            return;
+        }
+        memcpy(new_overloads, list->overloads, sizeof(OpOverload*) * list->size);
+        free(list->overloads);
+        list->overloads = new_overloads;
+    }
+    list->overloads[list->size++] = overload;
+}
+
+OpOverload *find_op_overload(OpOverloadList *list, OpOverloadKind kind, int op) {
+    for (int i = 0; i < list->size; i++) {
+        if (list->overloads[i]->kind == kind) {
+            if (kind == OP_OVERLOAD_UNOP) {
+                if (list->overloads[i]->unop == op) {
+                    return list->overloads[i];
+                }
+            } else {
+                if (list->overloads[i]->binop == op) {
+                    return list->overloads[i];
+                }
+            }
+        }
+    }
+    return NULL;
+}
+
+void free_op_overload_list(OpOverloadList *list) {
+    for (int i = 0; i < list->size; i++) {
+        free(list->overloads[i]);
+    }
+    free(list->overloads);
+    free(list);
+}
+
+Extension *new_extension(Type ty, MethodList *list) {
     Extension *extension = malloc(sizeof(Extension));
     if (extension == NULL) {
         return NULL;
     }
     extension->ty = ty;
-    extension->name = name;
-    extension->args = args;
-    extension->num_params = num_params;
-    extension->ret = ret;
+    extension->methods = list;
     return extension;
 }
+
+ExtensionList *new_extension_list() {
+    ExtensionList *list = malloc(sizeof(ExtensionList));
+    if (list == NULL) {
+        return NULL;
+    }
+    list->size = 0;
+    list->capacity = 4;
+    list->extensions = malloc(sizeof(Extension*) * list->capacity);
+    if (list->extensions == NULL) {
+        free(list);
+        printf("Failed to allocate memory\n");
+        return NULL;
+    }
+    return list;
+}
+
+void append_extension(ExtensionList *list, Extension *extension) {
+    if (list->size == list->capacity) {
+        list->capacity *= 2;
+        Extension** new_extensions = malloc(sizeof(Extension*) * list->capacity);
+        if (new_extensions == NULL) {
+            return;
+        }
+        memcpy(new_extensions, list->extensions, sizeof(Extension*) * list->size);
+        free(list->extensions);
+        list->extensions = new_extensions;
+    }
+    list->extensions[list->size++] = extension;
+}
+
+ExtensionList *extension_list_from_array(int length, Extension **array) {
+    ExtensionList *list = new_extension_list();
+    for (int i = 0; i < length; i++) {
+        append_extension(list, array[i]);
+    }
+    return list;
+}
+
+Extension *find_extension(ExtensionList *list, Type *ty) {
+    for (int i = 0; i < list->size; i++) {
+        if (check_same_type(&list->extensions[i]->ty, ty)) {
+            return list->extensions[i];
+        }
+    }
+    return NULL;
+}
+
+void append_or_set_extension(ExtensionList *list, Extension *extension) {
+    Extension *ext = find_extension(list, &extension->ty);
+    if (ext == NULL) {
+        append_extension(list, extension);
+    } else {
+        ext->methods = extension->methods;
+    }
+}
+
+void free_extension_list(ExtensionList *list) {
+    for (int i = 0; i < list->size; i++) {
+        free(list->extensions[i]);
+    }
+    free(list->extensions);
+    free(list);
+}
+
 
 StmtList *new_stmt_list() {
     StmtList *list = malloc(sizeof(StmtList));
@@ -797,7 +1019,8 @@ Stmt *new_expr_stmt(Expr *expr, Span span) {
     return stmt;
 }
 
-Stmt *new_struct_stmt(String *name, Param *args, int num_params, MethodList *methods, Span span) {
+Stmt *new_struct_stmt(String *name, Param *args, int num_params, MethodList *methods, OpOverloadList *op_overloads,
+                      Span span) {
     Stmt *stmt = malloc(sizeof(Stmt));
     if (stmt == NULL) {
         return NULL;
@@ -808,6 +1031,7 @@ Stmt *new_struct_stmt(String *name, Param *args, int num_params, MethodList *met
     stmt->struc.args = args;
     stmt->struc.num_params = num_params;
     stmt->struc.methods = methods;
+    stmt->struc.overloads = op_overloads;
     return stmt;
 }
 
@@ -938,6 +1162,17 @@ Stmt *new_import_stmt(String *name, Span span) {
     stmt->type = STMT_IMPORT;
     stmt->span = span;
     stmt->import.name = name;
+    return stmt;
+}
+
+Stmt *new_extension_stmt(Extension *extension, Span span) {
+    Stmt *stmt = malloc(sizeof(Stmt));
+    if (stmt == NULL) {
+        return NULL;
+    }
+    stmt->type = STMT_EXTENSION;
+    stmt->span = span;
+    stmt->extension = extension;
     return stmt;
 }
 

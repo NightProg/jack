@@ -56,7 +56,9 @@ typedef enum {
     TOKEN_AS,
     TOKEN_SELF,
     TOKEN_IMPORT,
-    TOKEN_MODULE
+    TOKEN_MODULE,
+    TOKEN_EXTENSION,
+    TOKEN_OP,
 } TokenType;
 
 

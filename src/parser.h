@@ -46,7 +46,10 @@ Stmt *parse_let(Parser *parser);
 Stmt *parse_extern(Parser *parser);
 Stmt *parse_import(Parser *parser);
 Stmt *parse_module(Parser *parser);
+Stmt *parse_extension(Parser *parser);
 
+Method *parse_method(Parser *parser);
+OpOverload *parse_op_overload(Parser *parser);
 
 
 StmtList *parse(const char *source, const char *file);

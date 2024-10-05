@@ -519,6 +519,22 @@ Token* next_token(Lexer *lexer) {
                             value,
                             lexer->file
                     ));
+                } else if (compare_string(value, "extension") == 0) {
+                    return new_token(TOKEN_EXTENSION, span(
+                            start,
+                            lexer->current_pos,
+                            lexer->line,
+                            value,
+                            lexer->file
+                    ));
+                } else if (compare_string(value, "op") == 0) {
+                    return new_token(TOKEN_OP, span(
+                            start,
+                            lexer->current_pos,
+                            lexer->line,
+                            value,
+                            lexer->file
+                    ));
                 }
                 return new_token(TOKEN_IDENTIFIER, span(
                         start,

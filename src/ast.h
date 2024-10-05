@@ -36,6 +36,10 @@ typedef struct MethodList MethodList;
 typedef struct Symbol Symbol;
 typedef struct Stat Stat;
 typedef struct Extension Extension;
+typedef struct ExtensionList ExtensionList;
+typedef enum OpOverloadKind OpOverloadKind;
+typedef struct OpOverload OpOverload;
+typedef struct OpOverloadList OpOverloadList;
 
 struct Stat {
     int num_use;
@@ -112,6 +116,7 @@ struct Type {
             Param *fields;
             int num_fields;
             MethodList *methods;
+            OpOverloadList *op_overloads;
         } struc;
         struct {
             Type *inner_type;
@@ -131,10 +136,12 @@ struct Type {
 
 Type *new_type(TypeKind kind);
 Type *new_func_type(Type *params, int num_params, Type *ret, int is_var_arg, String *name, int is_extern);
-Type *new_struct_type(String *name, Param *fields, int num_fields, MethodList *methods);
+Type *new_struct_type(String *name, Param *fields, int num_fields, MethodList *methods, OpOverloadList *list);
 Type *new_ptr_type(Type *inner_type);
 Type *new_array_type(Type *inner_type, int length);
 Type *new_module_type(SymbolList *symbols, String *name);
+
+String *display_type(Type *type);
 void free_type(Type *type);
 
 typedef struct {
@@ -187,6 +194,7 @@ struct Expr {
     ExprType type;
     Span span;
     Type *ty;
+    int is_in_return;
     union {
         int int_val;
         float float_val;
@@ -257,6 +265,10 @@ Expr *new_array_expr(ExprList *exprs, Span span);
 Expr *new_index_expr(Expr *list, Expr *index, Span span);
 Expr *new_ns_expr(StringList *path, Span span);
 void free_expr(Expr *expr);
+
+int is_arithmetic_op(int op);
+int is_cmp_op(int op);
+int is_logical_op(int op);
 
 
 struct StmtList {
@@ -339,6 +351,7 @@ struct Stmt {
             Param *args;
             int num_params;
             MethodList *methods;
+            OpOverloadList *overloads;
         } struc;
         struct {
             String *name;
@@ -359,14 +372,51 @@ struct Stmt {
 };
 
 struct Extension {
-    Type *ty;
-    String *name;
-    Param *args;
-    int num_params;
-    Type ret;
+    Type ty;
+    MethodList *methods;
 };
 
-Extension *new_extension(Type *ty, String *name, Param *args, int num_params, Type ret);
+Extension *new_extension(Type ty, MethodList *list);
+
+struct ExtensionList {
+    Extension **extensions;
+    size_t size;
+    size_t capacity;
+};
+
+ExtensionList *new_extension_list();
+void append_extension(ExtensionList *list, Extension *extension);
+void append_or_set_extension(ExtensionList *list, Extension *extension);
+ExtensionList *extension_list_from_array(int length, Extension **array);
+Extension *find_extension(ExtensionList *list, Type *ty);
+void free_extension_list(ExtensionList *list);
+
+enum OpOverloadKind {
+    OP_OVERLOAD_BINOP,
+    OP_OVERLOAD_UNOP,
+};
+struct OpOverload {
+    OpOverloadKind kind;
+    Method *method;
+    union {
+        int unop;
+        int binop;
+    };
+};
+
+OpOverload *new_binop_overload(Method *method, int op);
+OpOverload *new_unop_overload(Method *method, int op);
+
+struct OpOverloadList {
+    OpOverload **overloads;
+    size_t size;
+    size_t capacity;
+};
+
+OpOverloadList *new_op_overload_list();
+void append_op_overload(OpOverloadList *list, OpOverload *overload);
+OpOverload *find_op_overload(OpOverloadList *list, OpOverloadKind kind, int op);
+void free_op_overload_list(OpOverloadList *list);
 
 struct Method {
     String *name;
@@ -386,6 +436,7 @@ struct MethodList {
 
 MethodList *new_method_list();
 void append_method(MethodList *list, Method *method);
+Method *find_method(MethodList *list, String *name);
 MethodList *method_list_from_array(int length, Method **array);
 void free_method_list(MethodList *list);
 
@@ -406,7 +457,8 @@ Stmt *new_block_stmt(StmtList *stmts, Span span);
 Stmt *new_return_stmt(Expr *expr, Span span);
 Stmt *new_function_stmt(String *name, GenericList *list, Param *param, int num_params, Stmt *body, Span span, Type ret);
 Stmt *new_let_stmt(String *name, Type *type, Span span, Expr *expr);
-Stmt *new_struct_stmt(String *name, Param *args, int num_params, MethodList *methods, Span span);
+Stmt *new_struct_stmt(String *name, Param *args, int num_params, MethodList *methods, OpOverloadList *op_overloads,
+                      Span span);
 Stmt *new_extern_stmt(String *name, Param *args, int num_params, Type ret, int is_vararg, Span span);
 Stmt *new_module_stmt(String *name, StmtList *stmts, Span span);
 Stmt *new_import_stmt(String *name, Span span);
