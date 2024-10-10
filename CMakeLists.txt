@@ -6,6 +6,7 @@ set(CMAKE_C_STANDARD 17)
 include_directories(/usr/local/Cellar/llvm/18.1.8/include)
 link_directories(/usr/local/Cellar/llvm/18.1.8/lib)
 
+
 add_executable(jack src/main.c
         src/lexer.h
         src/lexer.c

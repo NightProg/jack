@@ -112,13 +112,6 @@ build CMakeFiles/jack.dir/src/error.c.o: C_COMPILER__jack_unscanned_Debug /Users
   OBJECT_DIR = CMakeFiles/jack.dir
   OBJECT_FILE_DIR = CMakeFiles/jack.dir/src
 
-build CMakeFiles/jack.dir/src/symbols.c.o: C_COMPILER__jack_unscanned_Debug /Users/antoine/Documents/jack/src/symbols.c || cmake_object_order_depends_target_jack
-  DEP_FILE = CMakeFiles/jack.dir/src/symbols.c.o.d
-  FLAGS = -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk
-  INCLUDES = -I/usr/local/Cellar/llvm/18.1.8/include
-  OBJECT_DIR = CMakeFiles/jack.dir
-  OBJECT_FILE_DIR = CMakeFiles/jack.dir/src
-
 build CMakeFiles/jack.dir/src/collection.c.o: C_COMPILER__jack_unscanned_Debug /Users/antoine/Documents/jack/src/collection.c || cmake_object_order_depends_target_jack
   DEP_FILE = CMakeFiles/jack.dir/src/collection.c.o.d
   FLAGS = -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk
@@ -140,6 +133,20 @@ build CMakeFiles/jack.dir/src/mangler.c.o: C_COMPILER__jack_unscanned_Debug /Use
   OBJECT_DIR = CMakeFiles/jack.dir
   OBJECT_FILE_DIR = CMakeFiles/jack.dir/src
 
+build CMakeFiles/jack.dir/src/optimizer.c.o: C_COMPILER__jack_unscanned_Debug /Users/antoine/Documents/jack/src/optimizer.c || cmake_object_order_depends_target_jack
+  DEP_FILE = CMakeFiles/jack.dir/src/optimizer.c.o.d
+  FLAGS = -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk
+  INCLUDES = -I/usr/local/Cellar/llvm/18.1.8/include
+  OBJECT_DIR = CMakeFiles/jack.dir
+  OBJECT_FILE_DIR = CMakeFiles/jack.dir/src
+
+build CMakeFiles/jack.dir/src/gc.c.o: C_COMPILER__jack_unscanned_Debug /Users/antoine/Documents/jack/src/gc.c || cmake_object_order_depends_target_jack
+  DEP_FILE = CMakeFiles/jack.dir/src/gc.c.o.d
+  FLAGS = -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk
+  INCLUDES = -I/usr/local/Cellar/llvm/18.1.8/include
+  OBJECT_DIR = CMakeFiles/jack.dir
+  OBJECT_FILE_DIR = CMakeFiles/jack.dir/src
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target jack
@@ -148,7 +155,7 @@ build CMakeFiles/jack.dir/src/mangler.c.o: C_COMPILER__jack_unscanned_Debug /Use
 #############################################
 # Link the executable jack
 
-build jack: C_EXECUTABLE_LINKER__jack_Debug CMakeFiles/jack.dir/src/main.c.o CMakeFiles/jack.dir/src/lexer.c.o CMakeFiles/jack.dir/src/string.c.o CMakeFiles/jack.dir/src/ast.c.o CMakeFiles/jack.dir/src/parser.c.o CMakeFiles/jack.dir/src/type.c.o CMakeFiles/jack.dir/src/span.c.o CMakeFiles/jack.dir/src/llvm_codegen.c.o CMakeFiles/jack.dir/src/error.c.o CMakeFiles/jack.dir/src/symbols.c.o CMakeFiles/jack.dir/src/collection.c.o CMakeFiles/jack.dir/src/cli.c.o CMakeFiles/jack.dir/src/mangler.c.o
+build jack: C_EXECUTABLE_LINKER__jack_Debug CMakeFiles/jack.dir/src/main.c.o CMakeFiles/jack.dir/src/lexer.c.o CMakeFiles/jack.dir/src/string.c.o CMakeFiles/jack.dir/src/ast.c.o CMakeFiles/jack.dir/src/parser.c.o CMakeFiles/jack.dir/src/type.c.o CMakeFiles/jack.dir/src/span.c.o CMakeFiles/jack.dir/src/llvm_codegen.c.o CMakeFiles/jack.dir/src/error.c.o CMakeFiles/jack.dir/src/collection.c.o CMakeFiles/jack.dir/src/cli.c.o CMakeFiles/jack.dir/src/mangler.c.o CMakeFiles/jack.dir/src/optimizer.c.o CMakeFiles/jack.dir/src/gc.c.o
   FLAGS = -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk
   LINK_FLAGS = -L/usr/local/opt/bison/lib
   LINK_LIBRARIES = -Wl,-rpath,/usr/local/Cellar/llvm/18.1.8/lib  -lLLVM-18

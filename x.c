@@ -44,11 +44,11 @@ int main(int argc, char** argv) {
     set_target_description(x, "Compile the x executable");
 
     Target *syms = new_target("libc", OTHER, NULL);
-    add_target_cmd(syms, CMD("cp", "libc.jack", "~/.jack/"));
+    add_target_cmd(syms, CMD("cp", "lib/libc.jack", "~/.jack/"));
     set_target_description(syms, "Generate libc symbols");
 
     Target *std = new_target("std", OTHER, NULL);
-    add_target_cmd(std, CMD("cp", "std.jack", "~/.jack/"));
+    add_target_cmd(std, CMD("cp", "lib/std.jack", "~/.jack/"));
     set_target_description(std, "Generate std symbols");
 
 

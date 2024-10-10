@@ -307,6 +307,17 @@ Token* next_token(Lexer *lexer) {
                              );
         case '-':
             lexer->current_pos++;
+            if (char_at(lexer->start, lexer->current_pos) == '>') {
+                lexer->current_pos++;
+                return new_token(TOKEN_ARROW, span(
+                                         lexer->current_pos - 2,
+                                         lexer->current_pos,
+                                         lexer->line,
+                                         slice_string(lexer->start, lexer->current_pos - 2, lexer->current_pos),
+                                         lexer->file
+                                    )
+                                 );
+            }
             return new_token(TOKEN_MINUS, span(
                                      lexer->current_pos - 1,
                                      lexer->current_pos,

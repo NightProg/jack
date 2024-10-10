@@ -229,7 +229,7 @@ Type *new_ptr_type(Type *inner_type) {
         return NULL;
     }
     type->kind = TYPE_PTR;
-    type->parent = new_type(TYPE_INVALID);
+    type->parent = inner_type->parent;
     type->inner_type = inner_type;
     return type;
 }
@@ -553,7 +553,7 @@ Expr *new_init_expr(Expr *name, ExprList *fields, Span span) {
     return expr;
 }
 
-Expr *new_get_expr(Expr *expr, String *field, Span span) {
+Expr *new_get_expr(Expr *expr, String *field, int is_ptr, Span span) {
     Expr *new_expr = malloc(sizeof(Expr));
     if (new_expr == NULL) {
         return NULL;
@@ -561,6 +561,7 @@ Expr *new_get_expr(Expr *expr, String *field, Span span) {
     new_expr->type = EXPR_GET;
     new_expr->get.expr = expr;
     new_expr->get.field = field;
+    new_expr->get.is_ptr = is_ptr;
     new_expr->span = span;
     new_expr->ty = new_type(TYPE_INVALID);
     return new_expr;
@@ -1006,6 +1007,14 @@ void free_stmt_list(StmtList *list) {
     }
     free(list->stmts);
     free(list);
+}
+
+
+Type get_struct_type_from_stmt(Stmt *stmt) {
+    if (stmt->type == STMT_STRUCT) {
+        return *new_struct_type(stmt->struc.name, stmt->struc.args, stmt->struc.num_params, stmt->struc.methods, stmt->struc.overloads);
+    }
+    return *new_type(TYPE_INVALID);
 }
 
 Stmt *new_expr_stmt(Expr *expr, Span span) {

@@ -249,7 +249,11 @@ Expr *parse_get(Parser *parser) {
     if (expr == NULL) {
         return NULL;
     }
-    while (check(parser, TOKEN_DOT)) {
+    while (check(parser, TOKEN_DOT) || check(parser, TOKEN_ARROW)) {
+        int is_ptr = 0;
+        if (check(parser, TOKEN_ARROW)) {
+            is_ptr = 1;
+        }
         parser->current++;
         if (!check(parser, TOKEN_IDENTIFIER)) {
             add_error(errorList, "Expected identifier", parser->tokens->tokens[parser->current]->span, parser->source);
@@ -258,7 +262,7 @@ Expr *parse_get(Parser *parser) {
 
         Token *field = parser->tokens->tokens[parser->current];
         parser->current++;
-        expr = new_get_expr(expr, field->span.source, extend_span(parser->source, expr->span, field->span));
+        expr = new_get_expr(expr, field->span.source, is_ptr, extend_span(parser->source, expr->span, field->span));
     }
     return expr;
 }
@@ -439,7 +443,12 @@ Method *parse_method(Parser *parser) {
             }
             parser->current++;
             args = realloc(args, sizeof(MethodParam) * (num_params + 1));
-            args[num_params] = (MethodParam) {1, NULL, *new_type(TYPE_INVALID)};
+            int is_ptr = 0;
+            if (check(parser, TOKEN_MUL)) {
+                parser->current++;
+                is_ptr = 1;
+            }
+            args[num_params] = (MethodParam) {1, is_ptr, NULL, *new_type(TYPE_INVALID)};
             num_params++;
             continue;
         }
@@ -459,7 +468,7 @@ Method *parse_method(Parser *parser) {
             return NULL;
         }
         args = realloc(args, sizeof(MethodParam) * (num_params + 1));
-        args[num_params] = (MethodParam) {0, param_name->span.source, ty};
+        args[num_params] = (MethodParam) {0, 0, param_name->span.source, ty};
         num_params++;
     }
     if (parser->tokens->tokens[parser->current]->type != TOKEN_RPAREN) {
@@ -601,6 +610,7 @@ OpOverload *parse_op_overload(Parser *parser) {
             add_error(errorList, "Expected 'self'", parser->tokens->tokens[parser->current]->span, parser->source);
             return NULL;
         }
+
         parser->current++;
         if (!check(parser, TOKEN_COMMA)) {
             add_error(errorList, "Expected ','", parser->tokens->tokens[parser->current]->span, parser->source);
@@ -632,8 +642,8 @@ OpOverload *parse_op_overload(Parser *parser) {
         Type ret = parse_type(parser);
         Stmt *body = parse_stmt(parser);
         MethodParam *args = malloc(sizeof(MethodParam) * 2);
-        args[0] = (MethodParam) {1, NULL, *new_type(TYPE_INVALID)};
-        args[1] = (MethodParam) {0, other->span.source, ty};
+        args[0] = (MethodParam) {1, 0, NULL, *new_type(TYPE_INVALID)};
+        args[1] = (MethodParam) {0, 0, other->span.source, ty};
         Method *method = new_method(top->span.source, args, 2, ret, body);
         return new_binop_overload(method, op);
     } else {

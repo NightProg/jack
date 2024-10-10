@@ -284,6 +284,9 @@ int expr_get_rule(TypeChecker *tc, Expr *expr) {
         return 0;
     }
     Type *s = expr->get.expr->ty;
+    if (expr->get.expr->ty->kind == TYPE_PTR && expr->get.is_ptr) {
+        s = expr->get.expr->ty->inner_type;
+    }
     Extension *ext = find_extension(tc->extensions, s);
     if (ext != NULL) {
         Method *method = find_method(ext->methods, expr->get.field);
@@ -302,10 +305,15 @@ int expr_get_rule(TypeChecker *tc, Expr *expr) {
             return 1;
         }
     }
-    if (expr->get.expr->ty->kind != TYPE_STRUCT) {
+    if (expr->get.expr->ty->kind != TYPE_STRUCT && !expr->get.is_ptr) {
         add_error(errorList, "Expected struct", expr->span, tc->source);
         return 0;
     }
+    if (expr->get.expr->ty->kind != TYPE_PTR && expr->get.is_ptr) {
+        add_error(errorList, "Expected pointer", expr->span, tc->source);
+        return 0;
+    }
+
     for (int i = 0; i < s->struc.num_fields; i++) {
         if (compare_strings(expr->get.field, s->struc.fields[i].name) == 0) {
             *expr->ty = s->struc.fields[i].ty;
@@ -314,10 +322,10 @@ int expr_get_rule(TypeChecker *tc, Expr *expr) {
     }
     // (a.a)("hello")
     for (int i = 0; i < s->struc.methods->size; i++) {
-        if (compare_strings(expr->get.field, expr->get.expr->ty->struc.methods->methods[i]->name) == 0) {
-            Type *params = malloc(sizeof(Type) * expr->get.expr->ty->struc.methods->methods[i]->num_params);
-            for (int j = 0; j < expr->get.expr->ty->struc.methods->methods[i]->num_params; j++) {
-                MethodParam param = expr->get.expr->ty->struc.methods->methods[i]->args[j];
+        if (compare_strings(expr->get.field, s->struc.methods->methods[i]->name) == 0) {
+            Type *params = malloc(sizeof(Type) * s->struc.methods->methods[i]->num_params);
+            for (int j = 0; j < s->struc.methods->methods[i]->num_params; j++) {
+                MethodParam param = s->struc.methods->methods[i]->args[j];
                 if (param.is_self) {
                     params[j] = *expr->get.expr->ty;
                     continue;
@@ -549,6 +557,7 @@ int struct_stmt_rule(TypeChecker *tc, Stmt *stmt) {
     }
     Type* s = new_struct_type(stmt->struc.name, fields, stmt->struc.num_params,
                               stmt->struc.methods, new_op_overload_list());
+    s->parent = tc->parent_type;
     add_var(tc->scope_manager, stmt->struc.name, *visit_new_type(tc, s));
 
     for (int i = 0; i < stmt->struc.methods->size; i++) {
@@ -558,7 +567,11 @@ int struct_stmt_rule(TypeChecker *tc, Stmt *stmt) {
         enter_scope(tc->scope_manager);
         for (int j = 0; j < stmt->struc.methods->methods[i]->num_params; j++) {
             if (stmt->struc.methods->methods[i]->args[j].is_self) {
-                stmt->struc.methods->methods[i]->args[j].ty = *s;
+                if (stmt->struc.methods->methods[i]->args[j].is_ptr) {
+                    stmt->struc.methods->methods[i]->args[j].ty = *new_ptr_type(s);
+                } else {
+                    stmt->struc.methods->methods[i]->args[j].ty = *s;
+                }
                 add_var(tc->scope_manager, new_string("self"), stmt->struc.methods->methods[i]->args[j].ty);
                 continue;
             }
@@ -614,8 +627,9 @@ int extern_stmt_rule(TypeChecker *tc, Stmt *stmt) {
         analyze_type(tc, &stmt->extern_.args[i].ty);
         param[i] = stmt->extern_.args[i].ty;
     }
+    analyze_type(tc, &stmt->extern_.ret);
     add_var(tc->scope_manager, stmt->extern_.name, *visit_new_type(tc, new_func_type(param, stmt->extern_.num_params,
-                                                                  &stmt->extern_.ret, stmt->extern_.is_vararg,
+                                                                                     &stmt->extern_.ret, stmt->extern_.is_vararg,
                                                                   stmt->extern_.name, 1)));
     return 1;
 }
@@ -638,6 +652,10 @@ int import_stmt_rule(TypeChecker *tc, Stmt *stmt) {
             fread(buffer, 1, length, file);
 
             StmtList *stmts = parse(strdup(buffer), path->data);
+            if (stmts == NULL) {
+                print_error_list();
+                return 0;
+            }
             Symbols *symbols = get_symbols_from_stmts(stmts);
             TypeChecker *new_tc = new_type_checker(new_symbols(), stmts, buffer);
             Type *s = new_module_type(symbols->symbols, stmt->import.name);
@@ -694,7 +712,11 @@ int extension_stmt_rule(TypeChecker *tc, Stmt *stmt) {
         enter_scope(tc->scope_manager);
         for (int j = 0; j < stmt->extension->methods->methods[i]->num_params; j++) {
             if (stmt->extension->methods->methods[i]->args[j].is_self) {
-                stmt->extension->methods->methods[i]->args[j].ty = *s;
+                if (stmt->extension->methods->methods[i]->args[j].is_ptr) {
+                    stmt->extension->methods->methods[i]->args[j].ty = *new_ptr_type(s);
+                } else {
+                    stmt->extension->methods->methods[i]->args[j].ty = *s;
+                }
                 add_var(tc->scope_manager, new_string("self"), stmt->extension->methods->methods[i]->args[j].ty);
                 continue;
             }

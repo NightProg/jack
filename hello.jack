@@ -1,40 +1,9 @@
-import libc;
-
-struct Coord {
-    x: int,
-    y: int
-    ;
-
-    func display(self): int {
-        libc::printf("(%d, %d)\n", self.x, self.y);
-        return 0
-    }
-
-    op +(self, other: Coord): Coord {
-        let res = Coord { self.x + other.x, self.y + other.y };
-        return res
-    }
-
-    op -(self, other: Coord): Coord {
-        let res = Coord { self.x - other.x, self.y - other.y };
-        return res
-    }
-
-
-}
-
-func yo(): Coord {
-    let coord = Coord { 33, 44 };
-    return coord
-}
+import std;
 
 func main(): int {
-    let coord = Coord { 3, 4 };
-    let other = yo();
-    let res = coord + other;
-    let res2 = res - other;
-    res.display();
-    res2.display();
+    let arr = std::Array { null, 0 };
+    let r = &arr;
+    r->new(10, 4);
 
     return 0
 }

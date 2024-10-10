@@ -1,16 +1,55 @@
-
+import libc;
 
 struct String {
-    value: string;
+    value: char*;
 
-    add(self, other: string): string {
-        let self_len = strlen(self.value);
-        let other_len = strlen(other);
+    func append_c_str(self, other: char*): char* {
+        let self_len = libc::strlen(self.value);
+        let other_len = libc::strlen(other);
         let new_len = self_len + other_len;
-        let new_str = malloc(new_len + 1);
-        strcpy(new_str, self.value);
-        strcat(new_str + self_len, other);
-        self.value = new_str;
+        let new_str = libc::malloc(new_len + 1) as char*;
+        libc::strcpy(new_str, self.value);
+        libc::strcat(new_str + self_len, other);
         return new_str
+    }
+
+    func to_c_string(self): char* {
+        return self.value
+    }
+}
+
+struct Array {
+    value: void*,
+    length: int;
+
+    func new(self*, length: int, size: int): int {
+        self->length = length;
+        self->value = libc::malloc(length * size);
+        return 0
+    }
+
+    func get(self, index: int): void* {
+        return self.value + index
+    }
+}
+
+
+func read_file(path: char*): String {
+    let file = libc::fopen(path, "r");
+    if (file == null) {
+        libc::printf("Failed to open file\n");
+        return String { null }
+    }
+    libc::fseek(file, 0, 2);
+    let size = libc::ftell(file);
+    libc::fseek(file, 0, 0);
+    let buffer = libc::malloc(size + 1) as char*;
+    libc::fread(buffer, 1, size, file);
+    return String { buffer }
+}
+
+extension char* {
+    func to_string(self): String {
+        return String { self }
     }
 }

@@ -277,12 +277,12 @@ LLVMValueRef llvm_codegen_expr(LLVMCodeGen *codegen, Expr *expr) {
                         return codegen->vars->vars[i]->value;
                     }
 //                    return codegen->vars->vars[i]->value;
-                    if (LLVMIsAArgument(codegen->vars->vars[i]->value) || codegen->no_load) {
+                    if (codegen->no_load) {
                         return codegen->vars->vars[i]->value;
                     }
-                    if (expr->ty->kind == TYPE_STRUCT) {
-                        return codegen->vars->vars[i]->value;
-                    }
+//                    if (expr->ty->kind == TYPE_STRUCT) {
+//                        return codegen->vars->vars[i]->value;
+//                    }
                     return LLVMBuildLoad2(codegen->builder, codegen->vars->vars[i]->type, codegen->vars->vars[i]->value, "loadtmp");
                 }
             }
@@ -340,6 +340,9 @@ LLVMValueRef llvm_codegen_expr(LLVMCodeGen *codegen, Expr *expr) {
         }
         case EXPR_GET: {
             Type *ty = expr->get.expr->ty;
+            if (ty->kind == TYPE_PTR && expr->get.is_ptr) {
+                ty = ty->inner_type;
+            }
             Extension *ext = find_extension(codegen->extensions, ty);
             if (ext != NULL) {
                 String *mangled = mangle_extension(ty, expr->get.field);
@@ -350,13 +353,25 @@ LLVMValueRef llvm_codegen_expr(LLVMCodeGen *codegen, Expr *expr) {
             }
             codegen->no_load++;
             String *name;
-            if (expr->get.expr->ty->parent != NULL && expr->get.expr->ty->parent->kind != TYPE_INVALID) {
-                name = mangle_module(expr->get.expr->ty->parent->module.name, expr->get.expr->ty->struc.name);
-            } else if (codegen->current_module != NULL) {
-                name = mangle_module(codegen->current_module, expr->get.expr->ty->struc.name);
+            String *struct_name;
+            LLVMValueRef struct_value;
+            if (expr->get.is_ptr) {
+                Type *st = expr->get.expr->ty->inner_type;
+                struct_name = st->struc.name;
+                LLVMValueRef ps = llvm_codegen_expr(codegen, expr->get.expr);
+                struct_value = LLVMBuildLoad2(codegen->builder, llvm_type(codegen, *st), ps, "loadtmp");
             } else {
-                name = expr->get.expr->ty->struc.name;
+                struct_name = expr->get.expr->ty->struc.name;
+                struct_value = llvm_codegen_expr(codegen, expr->get.expr);
             }
+            if (expr->get.expr->ty->parent != NULL && expr->get.expr->ty->parent->kind != TYPE_INVALID) {
+                name = mangle_module(expr->get.expr->ty->parent->module.name, struct_name);
+            } else if (codegen->current_module != NULL) {
+                name = mangle_module(codegen->current_module, struct_name);
+            } else {
+                name = struct_name;
+            }
+
             LLVMStructInfo *info = get_llvm_struct_info(codegen->structs, name);
 
             if (info == NULL) {
@@ -364,7 +379,6 @@ LLVMValueRef llvm_codegen_expr(LLVMCodeGen *codegen, Expr *expr) {
                 return NULL;
             }
             LLVMTypeRef struct_type = info->type;
-            LLVMValueRef struct_value = llvm_codegen_expr(codegen, expr->get.expr);
             codegen->no_load--;
             unsigned int length = LLVMCountStructElementTypes(struct_type);
             for (int i = 0; i < length; i++) {
@@ -504,13 +518,13 @@ LLVMValueRef llvm_codegen_expr(LLVMCodeGen *codegen, Expr *expr) {
 //                LLVMBuildStore(codegen->builder, value, struct_value);
 //                return struct_value;
 //            }
-            LLVMValueRef allocatmp = LLVMBuildAlloca(codegen->builder, LLVMPointerType(llvm_type(codegen,
-                                                                                                 *expr->ref->ty), 0), "allocatmp");
+//            LLVMValueRef allocatmp = LLVMBuildAlloca(codegen->builder, LLVMPointerType(llvm_type(codegen,
+//                                                                                                 *expr->ref->ty), 0), "reftmp");
             codegen->no_load++;
             LLVMValueRef value = llvm_codegen_expr(codegen, expr->ref);
             codegen->no_load--;
-            LLVMBuildStore(codegen->builder, value, allocatmp);
-            return allocatmp;
+//            LLVMBuildStore(codegen->builder, value, allocatmp);
+            return value;
         }
         case EXPR_DEREF: {
             LLVMValueRef value = llvm_codegen_expr(codegen, expr->deref);
@@ -530,12 +544,16 @@ LLVMValueRef llvm_codegen_expr(LLVMCodeGen *codegen, Expr *expr) {
             break;
         }
         case EXPR_INDEX: {
+            int old_load = codegen->no_load;
+            codegen->no_load = 0;
             LLVMValueRef list = llvm_codegen_expr(codegen, expr->index.list);
-            codegen->no_load++;
+            codegen->no_load = old_load;
             LLVMValueRef index = llvm_codegen_expr(codegen, expr->index.index);
-            codegen->no_load--;
             LLVMValueRef ptr = LLVMBuildGEP2(codegen->builder, llvm_type(codegen, *expr->index.list->ty->inner_type),
                                              list, &index, 1, "geptmp");
+            if (codegen->no_load) {
+                return ptr;
+            }
             return LLVMBuildLoad2(codegen->builder, llvm_type(codegen, *expr->index.list->ty->inner_type), ptr,
                                   "loadtmp");
         }
@@ -591,8 +609,9 @@ void llvm_codegen_function(LLVMCodeGen *codegen, Param* params, int num_params, 
     LLVMPositionBuilderAtEnd(codegen->builder, entry);
     for (int i = 0; i < num_params; i++) {
         LLVMValueRef arg = LLVMGetParam(func, i + n);
-        LLVMSetValueName2(arg, params[i].name->data, params[i].name->length);
-        append_llvm_var_info(codegen->vars, params[i].name, arg, LLVMTypeOf(arg));
+        LLVMValueRef alloca = LLVMBuildAlloca(codegen->builder, llvm_type(codegen, params[i].ty), params[i].name->data);
+        LLVMBuildStore(codegen->builder, arg, alloca);
+        append_llvm_var_info(codegen->vars, params[i].name, alloca, LLVMTypeOf(arg));
     }
     codegen->current_function = func;
     append_llvm_var_info(codegen->vars, name, func, func_type);
@@ -622,6 +641,20 @@ void llvm_codegen_stmt(LLVMCodeGen *codegen, Stmt *stmt) {
                 llvm_codegen_stmt(codegen, stmt->block.stmts->stmts[i]);
             }
             break;
+        case STMT_WHILE: {
+            LLVMBasicBlockRef cond_block = LLVMAppendBasicBlock(codegen->current_function, "whilecond");
+            LLVMBasicBlockRef body_block = LLVMAppendBasicBlock(codegen->current_function, "whilebody");
+            LLVMBasicBlockRef merge_block = LLVMAppendBasicBlock(codegen->current_function, "whilemerge");
+            LLVMBuildBr(codegen->builder, cond_block);
+            LLVMPositionBuilderAtEnd(codegen->builder, cond_block);
+            LLVMValueRef cond = llvm_codegen_expr(codegen, stmt->while_stmt.cond);
+            LLVMBuildCondBr(codegen->builder, cond, body_block, merge_block);
+            LLVMPositionBuilderAtEnd(codegen->builder, body_block);
+            llvm_codegen_stmt(codegen, stmt->while_stmt.body);
+            LLVMBuildBr(codegen->builder, cond_block);
+            LLVMPositionBuilderAtEnd(codegen->builder, merge_block);
+            break;
+        }
         case STMT_RETURN: {
             if (stmt->ret_expr == NULL) {
                 LLVMBuildRetVoid(codegen->builder);
@@ -644,7 +677,7 @@ void llvm_codegen_stmt(LLVMCodeGen *codegen, Stmt *stmt) {
             break;
         }
         case STMT_FUNCTION: {
-            llvm_codegen_function(codegen, stmt->function.args, stmt->function.num_params, stmt->function.ret, stmt->function.body, stmt->function.name);
+            llvm_codegen_function(codegen, stmt->function.args, stmt->function.num_params, stmt->function.ret, stmt->function.body, llvm_codegen_mangle(codegen, stmt->function.name));
             break;
         }
         case STMT_EXTERN: {
@@ -665,6 +698,7 @@ void llvm_codegen_stmt(LLVMCodeGen *codegen, Stmt *stmt) {
             String *mangle = llvm_codegen_mangle(codegen, stmt->struc.name);
             LLVMTypeRef r = LLVMStructCreateNamed(codegen->context, mangle->data);
             LLVMTypeRef *types = malloc(sizeof(LLVMTypeRef) * stmt->struc.num_params);
+            Type ty = get_struct_type_from_stmt(stmt);
             for (int i = 0; i < stmt->struc.num_params; i++) {
                 types[i] = llvm_type(codegen, stmt->struc.args[i].ty);
             }
@@ -675,18 +709,19 @@ void llvm_codegen_stmt(LLVMCodeGen *codegen, Stmt *stmt) {
                 Param *param_types = malloc(sizeof(Param) * method->num_params);
                 for (int j = 0; j < method->num_params; j++) {
                     if (method->args[j].is_self) {
-                        param_types[j] = (Param) {.name = new_string("self"), .ty = *new_ptr_type(new_type(TYPE_CHAR))};
+                        param_types[j] = (Param) {.name = new_string("self"), .ty = ty};
                         continue;
                     }
                     param_types[j] = (Param) {.name = method->args[j].name, .ty = method->args[j].ty};
                 }
-                llvm_codegen_function(codegen, param_types, method->num_params, method->ret, method->body, mangle_struct_method(stmt->struc.name, method->name));
+                llvm_codegen_function(codegen, param_types, method->num_params, method->ret, method->body,
+                                      llvm_codegen_mangle(codegen, mangle_struct_method(stmt->struc.name, method->name)));
             }
 
             for (int i = 0; i < stmt->struc.overloads->size; i++) {
                 OpOverload *overload = stmt->struc.overloads->overloads[i];
                 Param *param_types = malloc(sizeof(Param) * 2);
-                param_types[0] = (Param) {.name = new_string("self"), .ty = *new_ptr_type(new_type(TYPE_CHAR))};
+                param_types[0] = (Param) {.name = new_string("self"), .ty = ty};
                 param_types[1] = (Param) {.name = overload->method->args[1].name, .ty = overload->method->args[1].ty};
                 llvm_codegen_function(codegen, param_types, 2, overload->method->ret, overload->method->body, mangle_op_overload(overload->binop, stmt->struc.name));
             }
@@ -731,41 +766,57 @@ void llvm_codegen_stmt(LLVMCodeGen *codegen, Stmt *stmt) {
         }
         case STMT_EXTENSION: {
             append_or_set_extension(codegen->extensions, stmt->extension);
-            LLVMTypeRef r = llvm_type(codegen, stmt->extension->ty);
             for (int i = 0; i < stmt->extension->methods->size; i++) {
-                LLVMTypeRef* param_types = malloc(sizeof(LLVMTypeRef) * stmt->extension->methods->methods[i]->num_params);
-                for (int j = 0; j < stmt->extension->methods->methods[i]->num_params; j++) {
-                    MethodParam param = stmt->extension->methods->methods[i]->args[j];
-                    if (param.is_self) {
-                        param_types[j] = r/*LLVMPointerType(r, 0)*/;
+                Method *method = stmt->extension->methods->methods[i];
+                Param *param_types = malloc(sizeof(Param) * method->num_params);
+                for (int j = 0; j < method->num_params; j++) {
+                    if (method->args[j].is_self) {
+                        if (method->args[j].is_ptr) {
+                            param_types[j] = (Param) {.name = new_string("self"), .ty = *new_ptr_type(&stmt->extension->ty)};
+                            continue;
+                        }
+                        param_types[j] = (Param) {.name = new_string("self"), .ty = stmt->extension->ty};
                         continue;
                     }
-                    param_types[j] = llvm_type(codegen, param.ty);
+                    param_types[j] = (Param) {.name = method->args[j].name, .ty = method->args[j].ty};
                 }
-                LLVMTypeRef func_type = LLVMFunctionType(llvm_type(codegen, stmt->extension->methods->methods[i]->ret), param_types, stmt->extension->methods->methods[i]->num_params, 0);
-                String* mangled = mangle_extension(&stmt->extension->ty, stmt->extension->methods->methods[i]->name);
-                LLVMValueRef func = LLVMAddFunction(codegen->module, mangled->data, func_type);
-
-                for (int j = 0; j < stmt->extension->methods->methods[i]->num_params; j++) {
-                    LLVMValueRef arg = LLVMGetParam(func, j);
-                    MethodParam param = stmt->extension->methods->methods[i]->args[j];
-                    if (param.is_self) {
-                        LLVMSetValueName2(arg, "self", 4);
-                        append_llvm_var_info(codegen->vars, new_string("self"), arg, r);
-                        continue;
-                    }
-                    LLVMSetValueName2(arg, param.name->data, strlen(param.name->data));
-                    append_llvm_var_info(codegen->vars, param.name, arg, llvm_type(codegen, param.ty));
-                }
-
-                append_llvm_var_info(codegen->vars, mangled, func, func_type);
-                LLVMBasicBlockRef basic = LLVMAppendBasicBlock(func, "entry");
-                codegen->current_function = func;
-                LLVMPositionBuilderAtEnd(codegen->builder, basic);
-                llvm_codegen_stmt(codegen, stmt->extension->methods->methods[i]->body);
-                codegen->vars = filter_llvm_var_info(codegen->vars);
-
+                llvm_codegen_function(codegen, param_types, method->num_params, method->ret, method->body, mangle_extension(&stmt->extension->ty, method->name));
             }
+//            LLVMTypeRef r = llvm_type(codegen, stmt->extension->ty);
+//            for (int i = 0; i < stmt->extension->methods->size; i++) {
+//                LLVMTypeRef* param_types = malloc(sizeof(LLVMTypeRef) * stmt->extension->methods->methods[i]->num_params);
+//                for (int j = 0; j < stmt->extension->methods->methods[i]->num_params; j++) {
+//                    MethodParam param = stmt->extension->methods->methods[i]->args[j];
+//                    if (param.is_self) {
+//                        param_types[j] = r/*LLVMPointerType(r, 0)*/;
+//                        continue;
+//                    }
+//                    param_types[j] = llvm_type(codegen, param.ty);
+//                }
+//                LLVMTypeRef func_type = LLVMFunctionType(llvm_type(codegen, stmt->extension->methods->methods[i]->ret), param_types, stmt->extension->methods->methods[i]->num_params, 0);
+//                String* mangled = mangle_extension(&stmt->extension->ty, stmt->extension->methods->methods[i]->name);
+//                LLVMValueRef func = LLVMAddFunction(codegen->module, mangled->data, func_type);
+//
+//                for (int j = 0; j < stmt->extension->methods->methods[i]->num_params; j++) {
+//                    LLVMValueRef arg = LLVMGetParam(func, j);
+//                    MethodParam param = stmt->extension->methods->methods[i]->args[j];
+//                    if (param.is_self) {
+//                        LLVMSetValueName2(arg, "self", 4);
+//                        append_llvm_var_info(codegen->vars, new_string("self"), arg, r);
+//                        continue;
+//                    }
+//                    LLVMSetValueName2(arg, param.name->data, strlen(param.name->data));
+//                    append_llvm_var_info(codegen->vars, param.name, arg, llvm_type(codegen, param.ty));
+//                }
+//
+//                append_llvm_var_info(codegen->vars, mangled, func, func_type);
+//                LLVMBasicBlockRef basic = LLVMAppendBasicBlock(func, "entry");
+//                codegen->current_function = func;
+//                LLVMPositionBuilderAtEnd(codegen->builder, basic);
+//                llvm_codegen_stmt(codegen, stmt->extension->methods->methods[i]->body);
+//                codegen->vars = filter_llvm_var_info(codegen->vars);
+
+//            }
 
             break;
         }
@@ -844,6 +895,7 @@ void llvm_codegen_symbol(LLVMCodeGen *codegen, Symbol *symbol) {
 }
 
 void llvm_codegen(LLVMCodeGen *codegen) {
+
     for (int j = 0; j < codegen->symbols->symbols->size; j++) {
         llvm_codegen_symbol(codegen, codegen->symbols->symbols->symbols[j]);
     }

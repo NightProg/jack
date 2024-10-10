@@ -1,11 +1,33 @@
 struct FILE {;}
 
-extern printf(format: string, ...): int
-extern fopen(name: string, mode: string): FILE*
+struct in_addr {
+    s_addr: int
+    ;
+}
+
+struct sockaddr_in {
+    sin_family: int,
+    sin_port: int,
+    sin_addr: in_addr
+    ;
+}
+
+extern printf(format: char*, ...): int
+extern fopen(name: char*, mode: char*): FILE*
 extern fclose(file: FILE*): int
 extern fread(ptr: void*, size: int, nmemb: int, stream: FILE*): int
-extern malloc(size: int): void*
+extern fseek(stream: FILE*, offset: int, whence: int): int
+extern ftell(stream: FILE*): int
+extern malloc(size: char*): void*
 extern free(ptr: void*): void
-extern strcpy(s: string, other: string): string
-extern strlen(s: string): int
-extern strcat(s: string, other: string): string
+extern strcpy(s: char*, other: char*): char*
+extern strlen(s: char*): int
+extern strcat(s: char*, other: char*): char*
+
+extern socket(domain: int, type: int, protocol: int): int
+extern connect(sockfd: int, addr: void*, addrlen: int): int
+extern send(sockfd: int, buf: void*, len: int, flags: int): int
+extern recv(sockfd: int, buf: void*, len: int, flags: int): int
+extern bind(sockfd: int, addr: void*, addrlen: int): int
+extern close(sockfd: int): int
+extern htons(hostshort: int): int

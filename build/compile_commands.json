@@ -55,12 +55,6 @@
 },
 {
   "directory": "/Users/antoine/Documents/jack/build",
-  "command": "/usr/local/opt/llvm/bin/clang -I/usr/local/Cellar/llvm/18.1.8/include -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -o CMakeFiles/jack.dir/src/symbols.c.o -c /Users/antoine/Documents/jack/src/symbols.c",
-  "file": "/Users/antoine/Documents/jack/src/symbols.c",
-  "output": "CMakeFiles/jack.dir/src/symbols.c.o"
-},
-{
-  "directory": "/Users/antoine/Documents/jack/build",
   "command": "/usr/local/opt/llvm/bin/clang -I/usr/local/Cellar/llvm/18.1.8/include -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -o CMakeFiles/jack.dir/src/collection.c.o -c /Users/antoine/Documents/jack/src/collection.c",
   "file": "/Users/antoine/Documents/jack/src/collection.c",
   "output": "CMakeFiles/jack.dir/src/collection.c.o"
@@ -76,5 +70,17 @@
   "command": "/usr/local/opt/llvm/bin/clang -I/usr/local/Cellar/llvm/18.1.8/include -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -o CMakeFiles/jack.dir/src/mangler.c.o -c /Users/antoine/Documents/jack/src/mangler.c",
   "file": "/Users/antoine/Documents/jack/src/mangler.c",
   "output": "CMakeFiles/jack.dir/src/mangler.c.o"
+},
+{
+  "directory": "/Users/antoine/Documents/jack/build",
+  "command": "/usr/local/opt/llvm/bin/clang -I/usr/local/Cellar/llvm/18.1.8/include -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -o CMakeFiles/jack.dir/src/optimizer.c.o -c /Users/antoine/Documents/jack/src/optimizer.c",
+  "file": "/Users/antoine/Documents/jack/src/optimizer.c",
+  "output": "CMakeFiles/jack.dir/src/optimizer.c.o"
+},
+{
+  "directory": "/Users/antoine/Documents/jack/build",
+  "command": "/usr/local/opt/llvm/bin/clang -I/usr/local/Cellar/llvm/18.1.8/include -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -o CMakeFiles/jack.dir/src/gc.c.o -c /Users/antoine/Documents/jack/src/gc.c",
+  "file": "/Users/antoine/Documents/jack/src/gc.c",
+  "output": "CMakeFiles/jack.dir/src/gc.c.o"
 }
 ]

@@ -24,6 +24,7 @@ typedef enum {
     TOKEN_RBRACKET,
     TOKEN_COMMA,
     TOKEN_SEMICOLON,
+    TOKEN_ARROW,
     TOKEN_DOT,
     TOKEN_COL,
     TOKEN_PLUS,

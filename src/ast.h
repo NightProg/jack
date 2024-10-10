@@ -221,6 +221,7 @@ struct Expr {
         struct {
             Expr *expr;
             String *field;
+            int is_ptr;
         } get;
         struct {
             Expr *var;
@@ -255,7 +256,7 @@ Expr *new_binop_expr(int op, Expr *lhs, Expr *rhs, Span span);
 Expr *new_unop_expr(int op, Expr *expr, Span span);
 Expr *new_call_expr(Expr *name, ExprList *args, Span span);
 Expr *new_init_expr(Expr *name, ExprList *fields, Span span);
-Expr *new_get_expr(Expr *expr, String *field, Span span);
+Expr *new_get_expr(Expr *expr, String *field, int is_ptr, Span span);
 Expr *new_assign_expr(Expr *var, Expr *val, Span span);
 Expr *new_ref_expr(Expr *expr, Span span);
 Expr *new_deref_expr(Expr *expr, Span span);
@@ -443,12 +444,13 @@ void free_method_list(MethodList *list);
 
 struct MethodParam {
     int is_self;
+    int is_ptr;
     String *name;
     Type ty;
 };
 
 
-
+Type get_struct_type_from_stmt(Stmt *stmt);
 Stmt *new_expr_stmt(Expr *expr, Span span);
 Stmt *new_if_stmt(Expr *cond, Stmt *body, Span span, Stmt *else_body);
 Stmt *new_while_stmt(Expr *cond, Stmt *body, Span span);
