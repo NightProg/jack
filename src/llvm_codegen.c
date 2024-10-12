@@ -426,7 +426,13 @@ LLVMValueRef llvm_codegen_expr(LLVMCodeGen *codegen, Expr *expr) {
                 LLVMValueRef rc = llvm_codegen_expr(codegen, expr->binop.rhs);
                 codegen->no_load = old_load;
 //                LLVMValueRef l = LLVMBuildLoad2(codegen->builder, LLVMPointerType(LLVMInt8TypeInContext(codegen->context), 0), lc, "loadtmp");
-                return LLVMBuildGEP2(codegen->builder, llvm_type(codegen, *expr->binop.lhs->ty->inner_type), lc, &rc, 1, "geptmp");
+                LLVMTypeRef out;
+                if (expr->binop.lhs->ty->inner_type->kind == TYPE_VOID) {
+                    out = LLVMInt8TypeInContext(codegen->context);
+                } else {
+                    out = llvm_type(codegen, *expr->binop.lhs->ty->inner_type);
+                }
+                return LLVMBuildGEP2(codegen->builder, out, lc, &rc, 1, "geptmp");
             }
 
 

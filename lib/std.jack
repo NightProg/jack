@@ -31,6 +31,12 @@ struct Array {
     func get(self, index: int): void* {
         return self.value + index
     }
+
+    func set(self*, index: int, value: void*): int {
+        let ptr = self->value + index;
+        libc::memcpy(ptr, value, self->size);
+        return 0
+    }
 }
 
 
@@ -40,6 +46,7 @@ func read_file(path: char*): String {
         libc::printf("Failed to open file\n");
         return String { null }
     }
+
     libc::fseek(file, 0, 2);
     let size = libc::ftell(file);
     libc::fseek(file, 0, 0);

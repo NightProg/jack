@@ -19,6 +19,7 @@ extern fread(ptr: void*, size: int, nmemb: int, stream: FILE*): int
 extern fseek(stream: FILE*, offset: int, whence: int): int
 extern ftell(stream: FILE*): int
 extern malloc(size: char*): void*
+extern memcpy(dest: void*, src: void*, n: int): void*
 extern free(ptr: void*): void
 extern strcpy(s: char*, other: char*): char*
 extern strlen(s: char*): int
